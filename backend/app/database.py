@@ -1,3 +1,5 @@
+import ssl as ssl_module
+from urllib.parse import urlparse, parse_qs
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from app.config import get_settings
@@ -13,6 +15,18 @@ class OdooBase(DeclarativeBase):
     pass
 
 
+def _needs_ssl(url: str) -> dict:
+    """Return connect_args for asyncpg SSL when sslmode is in the URL."""
+    parsed = urlparse(url)
+    params = parse_qs(parsed.query)
+    if "sslmode" in params or ".neon.tech" in url or ".rds.amazonaws.com" in url:
+        ctx = ssl_module.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl_module.CERT_NONE
+        return {"ssl": ctx}
+    return {}
+
+
 settings = get_settings()
 
 app_engine = create_async_engine(
@@ -20,6 +34,7 @@ app_engine = create_async_engine(
     echo=False,
     pool_size=10,
     max_overflow=20,
+    connect_args=_needs_ssl(settings.app_database_url),
 )
 
 odoo_engine = create_async_engine(
@@ -28,6 +43,7 @@ odoo_engine = create_async_engine(
     pool_size=20,
     max_overflow=30,
     pool_pre_ping=True,
+    connect_args=_needs_ssl(settings.odoo_database_url),
 )
 
 AppSessionLocal = async_sessionmaker(

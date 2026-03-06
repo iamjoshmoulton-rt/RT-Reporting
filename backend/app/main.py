@@ -44,14 +44,22 @@ async def _seed_app_settings(db):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    settings = get_settings()
+    import logging
+    logger = logging.getLogger("rt_reporting.startup")
 
+    settings = get_settings()
     configure_google_oauth()
 
-    async with AppSessionLocal() as db:
-        await seed_roles(db)
-        await seed_superadmin(db)
-        await _seed_app_settings(db)
+    try:
+        logger.info("Connecting to app database (Neon)...")
+        async with AppSessionLocal() as db:
+            await seed_roles(db)
+            await seed_superadmin(db)
+            await _seed_app_settings(db)
+        logger.info("App database seeded successfully.")
+    except Exception as e:
+        logger.error(f"App database connection failed: {e}")
+        raise
 
     start_scheduler()
 
