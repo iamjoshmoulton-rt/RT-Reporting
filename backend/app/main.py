@@ -91,6 +91,8 @@ app.add_middleware(
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.jwt_secret_key,
+    same_site="lax",
+    https_only=True,
 )
 
 app.add_middleware(UserTimezoneMiddleware)

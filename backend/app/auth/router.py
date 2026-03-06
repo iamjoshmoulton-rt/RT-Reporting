@@ -1,7 +1,10 @@
+import logging
 import secrets
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+
+logger = logging.getLogger(__name__)
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +39,11 @@ async def google_login(request: Request):
 
 @router.get("/google/callback")
 async def google_callback(request: Request, db: AsyncSession = Depends(get_app_db)):
-    token = await oauth.google.authorize_access_token(request)
+    try:
+        token = await oauth.google.authorize_access_token(request)
+    except Exception as e:
+        logger.error(f"Google OAuth token exchange failed: {e}")
+        raise HTTPException(status_code=500, detail=f"OAuth error: {e}")
     userinfo = token.get("userinfo")
     if not userinfo:
         raise HTTPException(status_code=400, detail="Failed to get user info from Google")
