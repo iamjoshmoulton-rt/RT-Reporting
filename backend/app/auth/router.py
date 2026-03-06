@@ -1,7 +1,11 @@
 import logging
 import secrets
+import hmac
+import hashlib
 from uuid import UUID
+from urllib.parse import urlencode
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 
 logger = logging.getLogger(__name__)
@@ -22,44 +26,120 @@ from app.auth.schemas import (
 from app.auth.utils import (
     hash_password, verify_password, decode_token, make_token_response,
 )
-from app.auth.google_sso import oauth, validate_domain
+from app.auth.google_sso import validate_domain
 from app.auth.dependencies import get_current_user, require_admin
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
+# Google OAuth endpoints (no session dependency)
+GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
 
-# --- Google SSO ---
+
+def _sign_state(state: str, secret: str) -> str:
+    """HMAC-sign a state string for CSRF protection."""
+    return hmac.new(secret.encode(), state.encode(), hashlib.sha256).hexdigest()[:32]
+
+
+# --- Google SSO (cookie-based state, no session middleware needed) ---
 
 @router.get("/google/login")
 async def google_login(request: Request):
     settings = get_settings()
-    redirect_uri = settings.google_redirect_uri
-    return await oauth.google.authorize_redirect(request, redirect_uri)
+
+    # Generate CSRF state + HMAC signature
+    state = secrets.token_urlsafe(32)
+    sig = _sign_state(state, settings.jwt_secret_key)
+
+    params = {
+        "client_id": settings.google_client_id,
+        "redirect_uri": settings.google_redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": state,
+        "access_type": "offline",
+        "prompt": "select_account",
+    }
+
+    auth_url = f"{GOOGLE_AUTH_URL}?{urlencode(params)}"
+    response = RedirectResponse(url=auth_url)
+    response.set_cookie(
+        key="oauth_state",
+        value=f"{state}.{sig}",
+        max_age=600,
+        httponly=True,
+        samesite="lax",
+        path="/",
+    )
+    return response
 
 
 @router.get("/google/callback")
 async def google_callback(request: Request, db: AsyncSession = Depends(get_app_db)):
-    try:
-        token = await oauth.google.authorize_access_token(request)
-    except Exception as e:
-        logger.error(f"Google OAuth token exchange failed: {e}")
-        raise HTTPException(status_code=500, detail=f"OAuth error: {e}")
-    userinfo = token.get("userinfo")
-    if not userinfo:
-        raise HTTPException(status_code=400, detail="Failed to get user info from Google")
+    settings = get_settings()
 
-    email = userinfo["email"]
+    # --- Verify CSRF state ---
+    state_param = request.query_params.get("state", "")
+    cookie_val = request.cookies.get("oauth_state", "")
+
+    if not cookie_val or "." not in cookie_val:
+        logger.error(
+            f"OAuth state cookie missing. Cookies present: {list(request.cookies.keys())}"
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="OAuth session expired — please try logging in again.",
+        )
+
+    cookie_state, cookie_sig = cookie_val.rsplit(".", 1)
+    expected_sig = _sign_state(cookie_state, settings.jwt_secret_key)
+
+    if state_param != cookie_state or cookie_sig != expected_sig:
+        logger.error(f"OAuth state mismatch: url_state={state_param[:8]}…, cookie_state={cookie_state[:8]}…")
+        raise HTTPException(status_code=400, detail="Invalid OAuth state — please try again.")
+
+    # --- Exchange authorization code for tokens ---
+    code = request.query_params.get("code")
+    if not code:
+        error = request.query_params.get("error", "unknown")
+        raise HTTPException(status_code=400, detail=f"Google auth denied: {error}")
+
+    async with httpx.AsyncClient() as client:
+        token_resp = await client.post(GOOGLE_TOKEN_URL, data={
+            "client_id": settings.google_client_id,
+            "client_secret": settings.google_client_secret,
+            "code": code,
+            "redirect_uri": settings.google_redirect_uri,
+            "grant_type": "authorization_code",
+        })
+        if token_resp.status_code != 200:
+            logger.error(f"Google token exchange failed ({token_resp.status_code}): {token_resp.text}")
+            raise HTTPException(status_code=500, detail="Failed to authenticate with Google")
+        google_tokens = token_resp.json()
+
+    # --- Fetch user info ---
+    async with httpx.AsyncClient() as client:
+        info_resp = await client.get(
+            GOOGLE_USERINFO_URL,
+            headers={"Authorization": f"Bearer {google_tokens['access_token']}"},
+        )
+        if info_resp.status_code != 200:
+            raise HTTPException(status_code=500, detail="Failed to get user info from Google")
+        userinfo = info_resp.json()
+
+    email = userinfo.get("email", "")
     if not validate_domain(email):
         raise HTTPException(
             status_code=403,
-            detail=f"Only @{get_settings().allowed_domain} emails are allowed",
+            detail=f"Only @{settings.allowed_domain} emails are allowed",
         )
 
+    # --- Find or create user ---
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
 
     if not user:
-        # Auto-create user on first SSO login with default Viewer role
         viewer_result = await db.execute(select(Role).where(Role.name == "Viewer"))
         viewer_role = viewer_result.scalar_one_or_none()
 
@@ -79,11 +159,13 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_app_d
         raise HTTPException(status_code=403, detail="Account is deactivated")
 
     tokens = make_token_response(str(user.id))
-    settings = get_settings()
-    frontend_url = settings.frontend_url
-    return RedirectResponse(
+    frontend_url = settings.frontend_url.split(",")[0].strip()
+
+    redirect = RedirectResponse(
         url=f"{frontend_url}/auth/callback?access_token={tokens['access_token']}&refresh_token={tokens['refresh_token']}"
     )
+    redirect.delete_cookie("oauth_state")
+    return redirect
 
 
 # --- Password Login (fallback) ---

@@ -1,12 +1,10 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import get_settings
 from app.database import AppSessionLocal
 from app.auth.router import router as auth_router
-from app.auth.google_sso import configure_google_oauth
 from app.auth.seed import seed_roles, seed_superadmin
 from app.routers.dashboard import router as dashboard_router
 from app.routers.sales import router as sales_router
@@ -48,7 +46,6 @@ async def lifespan(app: FastAPI):
     logger = logging.getLogger("rt_reporting.startup")
 
     settings = get_settings()
-    configure_google_oauth()
 
     try:
         logger.info("Connecting to app database (Neon)...")
@@ -86,15 +83,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
-
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=settings.jwt_secret_key,
-    same_site="lax",
-    https_only=False,
-    max_age=600,
-    session_cookie="rt_session",
 )
 
 app.add_middleware(UserTimezoneMiddleware)
