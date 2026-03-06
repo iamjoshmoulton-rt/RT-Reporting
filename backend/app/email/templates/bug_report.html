@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { margin: 0; padding: 0; background-color: #f4f6f9; font-family: Arial, sans-serif; }
+    .container { max-width: 640px; margin: 0 auto; background: #ffffff; }
+    .header { background: linear-gradient(135deg, #1a1f3d 0%, #131829 100%); padding: 32px; text-align: center; }
+    .header h1 { color: #48cae1; font-size: 24px; margin: 0; font-weight: 700; }
+    .header p { color: rgba(255,255,255,0.5); font-size: 13px; margin: 8px 0 0; }
+    .content { padding: 32px; }
+    .priority-badge {
+      display: inline-block; padding: 4px 12px; border-radius: 12px;
+      font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #ffffff;
+    }
+    .section-title { font-size: 16px; font-weight: 700; color: #1a1f3d; margin: 24px 0 12px; }
+    .description-box {
+      background: #f8f9fc; border: 1px solid #e8edf2; border-radius: 8px;
+      padding: 16px; white-space: pre-wrap; font-size: 14px; color: #32373c; line-height: 1.6;
+    }
+    .info-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+    .info-table td { padding: 8px 12px; border-bottom: 1px solid #e8edf2; color: #32373c; vertical-align: top; }
+    .info-table td:first-child { font-weight: 600; color: #64748b; width: 140px; white-space: nowrap; }
+    .info-table tr:nth-child(even) td { background: #f8f9fc; }
+    .screenshot-box { margin-top: 16px; }
+    .screenshot-box img { max-width: 100%; border: 1px solid #e8edf2; border-radius: 8px; }
+    .recording-box {
+      margin-top: 16px; background: #f0f9ff; border: 1px solid #48cae1; border-radius: 8px;
+      padding: 12px 16px; font-size: 13px; color: #1a1f3d;
+    }
+    .recording-box a { color: #48cae1; font-weight: 600; text-decoration: none; }
+    .error-item { background: #fff5f5; border-left: 3px solid #cf2e2e; padding: 8px 12px; margin-top: 6px; font-size: 12px; color: #32373c; border-radius: 0 4px 4px 0; }
+    .footer { background: #f4f6f9; padding: 24px; text-align: center; font-size: 12px; color: #94a3b8; }
+    .footer a { color: #48cae1; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>RT Reporting</h1>
+      <p>Bug Report</p>
+    </div>
+    <div class="content">
+      <div style="margin-bottom: 24px;">
+        <span class="priority-badge" style="background-color: {{ priority_color }};">{{ priority }}</span>
+      </div>
+
+      <h2 style="font-size: 20px; color: #1a1f3d; margin: 0 0 16px;">{{ subject }}</h2>
+
+      <p class="section-title">Description</p>
+      <div class="description-box">{{ description }}</div>
+
+      {% if has_screenshot %}
+      <p class="section-title">Screenshot</p>
+      <div class="screenshot-box">
+        <img src="cid:screenshot" alt="Screenshot" />
+      </div>
+      {% endif %}
+
+      {% if has_recording %}
+      <div class="recording-box">
+        &#127909; Screen recording attached to this email.
+        {% if recording_url %}
+          You can also <a href="{{ recording_url }}">view it online</a>.
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <p class="section-title">Reporter</p>
+      <table class="info-table">
+        <tr><td>Name</td><td>{{ reporter_name }}</td></tr>
+        <tr><td>Email</td><td>{{ reporter_email }}</td></tr>
+        <tr><td>Page</td><td>{{ page_url or 'N/A' }}</td></tr>
+        <tr><td>Submitted</td><td>{{ timestamp }}</td></tr>
+      </table>
+
+      {% if diagnostics %}
+      <p class="section-title">Diagnostics</p>
+      <table class="info-table">
+        {% if diagnostics.browser %}<tr><td>Browser</td><td>{{ diagnostics.browser }}</td></tr>{% endif %}
+        {% if diagnostics.os %}<tr><td>OS</td><td>{{ diagnostics.os }}</td></tr>{% endif %}
+        {% if diagnostics.viewport %}<tr><td>Viewport</td><td>{{ diagnostics.viewport }}</td></tr>{% endif %}
+        {% if diagnostics.screen_resolution %}<tr><td>Screen</td><td>{{ diagnostics.screen_resolution }}</td></tr>{% endif %}
+        {% if diagnostics.theme %}<tr><td>Theme</td><td>{{ diagnostics.theme }}</td></tr>{% endif %}
+        {% if diagnostics.timezone %}<tr><td>Timezone</td><td>{{ diagnostics.timezone }}</td></tr>{% endif %}
+      </table>
+
+      {% if diagnostics.recent_errors %}
+      <p class="section-title">Recent Errors</p>
+      {% for err in diagnostics.recent_errors %}
+      <div class="error-item">
+        <strong>{{ err.message }}</strong>
+        {% if err.source %}<br><span style="color: #94a3b8;">{{ err.source }}</span>{% endif %}
+        {% if err.timestamp %}<br><span style="color: #94a3b8;">{{ err.timestamp }}</span>{% endif %}
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      {% if diagnostics.pages_visited %}
+      <p class="section-title">Navigation History ({{ diagnostics.pages_visited|length }} pages)</p>
+      <table class="info-table">
+        <tr style="background: #48cae1;"><td style="color: white; font-weight: 600;">Time</td><td style="color: white; font-weight: 600;">Page</td></tr>
+        {% for visit in diagnostics.pages_visited %}
+        <tr><td style="white-space: nowrap;">{{ visit.timestamp[:19] }}</td><td>{{ visit.path }}</td></tr>
+        {% endfor %}
+      </table>
+      {% endif %}
+      {% endif %}
+    </div>
+    <div class="footer">
+      <p>This bug report was submitted via RT Reporting</p>
+    </div>
+  </div>
+</body>
+</html>

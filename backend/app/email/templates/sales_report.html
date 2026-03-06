@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="kpi-row">
+  <div class="kpi-card">
+    <div class="kpi-value">${{ "{:,.0f}".format(summary.total_revenue) }}</div>
+    <div class="kpi-label">Total Revenue</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value">{{ summary.total_orders }}</div>
+    <div class="kpi-label">Orders</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value">${{ "{:,.0f}".format(summary.avg_order_value) }}</div>
+    <div class="kpi-label">Avg Order Value</div>
+  </div>
+</div>
+
+{% if top_customers %}
+<h3 class="section-title">Top Customers</h3>
+<table class="data">
+  <tr><th>Customer</th><th>Orders</th><th>Revenue</th></tr>
+  {% for c in top_customers[:10] %}
+  <tr>
+    <td>{{ c.customer_name }}</td>
+    <td>{{ c.order_count }}</td>
+    <td>${{ "{:,.0f}".format(c.total_revenue) }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+{% if recent_orders %}
+<h3 class="section-title">Recent Orders</h3>
+<table class="data">
+  <tr><th>Order #</th><th>Customer</th><th>Date</th><th>Total</th><th>Status</th></tr>
+  {% for o in recent_orders[:15] %}
+  <tr>
+    <td>{{ o.name }}</td>
+    <td>{{ o.customer_name }}</td>
+    <td>{{ o.date_order[:10] if o.date_order else '-' }}</td>
+    <td>${{ "{:,.0f}".format(o.amount_total) }}</td>
+    <td>{{ o.state }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+<p style="margin-top: 24px; font-size: 13px; color: #64748b;">
+  Report period: {{ date_from }} to {{ date_to }}
+</p>
+{% endblock %}

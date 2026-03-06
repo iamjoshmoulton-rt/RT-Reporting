@@ -1,0 +1,89 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;700&display=swap');
+
+@theme inline {
+  --color-primary: #48cae1;
+  --color-primary-hover: #3ab8cf;
+  --color-primary-light: #48cae11a;
+  --color-navy: #1a1f3d;
+  --color-navy-light: #232850;
+  --color-charcoal: #32373c;
+  --color-success: #00d084;
+  --color-success-light: #00d0841a;
+  --color-warning: #fcb900;
+  --color-danger: #cf2e2e;
+  --color-muted: #abb8c3;
+  --color-border-light: #e8edf2;
+
+  --color-dark-bg: #0c101f;
+  --color-dark-surface: #131829;
+  --color-dark-card: #1a1f3d;
+  --color-dark-border: #2a3055;
+  --color-dark-text: #e2e8f0;
+
+  --font-heading: 'Oswald', sans-serif;
+  --font-body: 'Oswald', sans-serif;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #32373c;
+  --card: #ffffff;
+  --card-foreground: #32373c;
+  --popover: #ffffff;
+  --popover-foreground: #32373c;
+  --primary: #48cae1;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #1a1f3d;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #f1f5f9;
+  --accent-foreground: #1a1f3d;
+  --destructive: #cf2e2e;
+  --destructive-foreground: #ffffff;
+  --border: #e8edf2;
+  --input: #e8edf2;
+  --ring: #48cae1;
+  --radius: 0.5rem;
+  --sidebar-bg: linear-gradient(180deg, #1a1f3d 0%, #131829 100%);
+}
+
+.dark {
+  --background: #0c101f;
+  --foreground: #e2e8f0;
+  --card: #1a1f3d;
+  --card-foreground: #e2e8f0;
+  --popover: #1a1f3d;
+  --popover-foreground: #e2e8f0;
+  --primary: #48cae1;
+  --primary-foreground: #0c101f;
+  --secondary: #232850;
+  --secondary-foreground: #e2e8f0;
+  --muted: #232850;
+  --muted-foreground: #94a3b8;
+  --accent: #232850;
+  --accent-foreground: #e2e8f0;
+  --destructive: #cf2e2e;
+  --destructive-foreground: #ffffff;
+  --border: #2a3055;
+  --input: #2a3055;
+  --ring: #48cae1;
+  --sidebar-bg: linear-gradient(180deg, #0c101f 0%, #131829 100%);
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  font-weight: 300;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+}

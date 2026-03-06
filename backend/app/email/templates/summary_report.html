@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="kpi-row">
+  <div class="kpi-card">
+    <div class="kpi-value">${{ "{:,.0f}".format(sales.total_revenue) }}</div>
+    <div class="kpi-label">Sales Revenue</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value">${{ "{:,.0f}".format(procurement.total_spend) }}</div>
+    <div class="kpi-label">Procurement</div>
+  </div>
+</div>
+
+<div class="kpi-row">
+  <div class="kpi-card">
+    <div class="kpi-value">${{ "{:,.0f}".format(accounting.invoices.outstanding) }}</div>
+    <div class="kpi-label">Outstanding Receivables</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value">${{ "{:,.0f}".format(accounting.bills.outstanding) }}</div>
+    <div class="kpi-label">Outstanding Payables</div>
+  </div>
+</div>
+
+<h3 class="section-title">Sales Summary</h3>
+<table class="data">
+  <tr><td>Total Orders</td><td><strong>{{ sales.total_orders }}</strong></td></tr>
+  <tr><td>Total Revenue</td><td><strong>${{ "{:,.0f}".format(sales.total_revenue) }}</strong></td></tr>
+  <tr><td>Average Order Value</td><td><strong>${{ "{:,.0f}".format(sales.avg_order_value) }}</strong></td></tr>
+</table>
+
+<h3 class="section-title">Procurement Summary</h3>
+<table class="data">
+  <tr><td>Purchase Orders</td><td><strong>{{ procurement.total_orders }}</strong></td></tr>
+  <tr><td>Total Spend</td><td><strong>${{ "{:,.0f}".format(procurement.total_spend) }}</strong></td></tr>
+</table>
+
+<h3 class="section-title">Inventory</h3>
+<table class="data">
+  <tr><td>Unique Products</td><td><strong>{{ inventory.unique_products }}</strong></td></tr>
+  <tr><td>Total On Hand</td><td><strong>{{ "{:,.0f}".format(inventory.total_quantity) }}</strong></td></tr>
+  <tr><td>Available</td><td><strong>{{ "{:,.0f}".format(inventory.available_quantity) }}</strong></td></tr>
+</table>
+
+<p style="margin-top: 24px; font-size: 13px; color: #64748b;">
+  Report period: {{ date_from }} to {{ date_to }}
+</p>
+{% endblock %}
