@@ -13,7 +13,8 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false)
 
   const handleGoogleLogin = () => {
-    window.location.href = '/api/auth/google/login'
+    const apiBase = import.meta.env.VITE_API_URL || '/api'
+    window.location.href = `${apiBase}/auth/google/login`
   }
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
