@@ -1,8 +1,11 @@
 import ssl as ssl_module
-from urllib.parse import urlparse, parse_qs
+import logging
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from app.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 class AppBase(DeclarativeBase):
@@ -15,11 +18,20 @@ class OdooBase(DeclarativeBase):
     pass
 
 
-def _needs_ssl(url: str) -> dict:
-    """Return connect_args for asyncpg SSL when sslmode is in the URL."""
+def _strip_sslmode(url: str) -> str:
+    """Remove sslmode from URL query params (asyncpg doesn't understand it)."""
     parsed = urlparse(url)
     params = parse_qs(parsed.query)
-    if "sslmode" in params or ".neon.tech" in url or ".rds.amazonaws.com" in url:
+    if "sslmode" in params:
+        del params["sslmode"]
+        new_query = urlencode(params, doseq=True)
+        return urlunparse(parsed._replace(query=new_query))
+    return url
+
+
+def _needs_ssl(url: str) -> dict:
+    """Return connect_args for asyncpg SSL when needed."""
+    if ".neon.tech" in url or ".rds.amazonaws.com" in url or "sslmode" in url:
         ctx = ssl_module.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl_module.CERT_NONE
@@ -29,19 +41,26 @@ def _needs_ssl(url: str) -> dict:
 
 settings = get_settings()
 
+# Strip sslmode from URLs (asyncpg uses connect_args for SSL instead)
+app_db_url = _strip_sslmode(settings.app_database_url)
+odoo_db_url = _strip_sslmode(settings.odoo_database_url)
+
+logger.info(f"App DB host: {urlparse(app_db_url).hostname}")
+logger.info(f"Odoo DB host: {urlparse(odoo_db_url).hostname}")
+
 app_engine = create_async_engine(
-    settings.app_database_url,
+    app_db_url,
     echo=False,
-    pool_size=10,
-    max_overflow=20,
+    pool_size=5,
+    max_overflow=10,
     connect_args=_needs_ssl(settings.app_database_url),
 )
 
 odoo_engine = create_async_engine(
-    settings.odoo_database_url,
+    odoo_db_url,
     echo=False,
-    pool_size=20,
-    max_overflow=30,
+    pool_size=5,
+    max_overflow=10,
     pool_pre_ping=True,
     connect_args=_needs_ssl(settings.odoo_database_url),
 )
