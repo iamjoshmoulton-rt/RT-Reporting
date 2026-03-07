@@ -1,10 +1,54 @@
-from datetime import date
+"""Inventory service with performance optimizations.
+
+Optimizations:
+1. UTC date range — filter on raw column (index-friendly) instead of local_date() wrapper
+2. Response cache — 2-min TTL for summary and stock levels
+3. Parallel queries — product detail runs independent queries concurrently
+4. JOIN-based location names — replaces correlated scalar subqueries
+"""
+
+import asyncio
+import time
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
+
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.odoo_models.inventory import StockQuant, StockMove, StockLocation, StockWarehouse
 from app.odoo_models.partners import ProductTemplate, ProductProduct
-from app.services.tz import local_date
+from app.services.tz import get_effective_timezone
+from app.database import OdooSessionLocal
+
+# ── Response cache ────────────────────────────────────────────────────
+_inv_cache: dict[str, tuple[float, any]] = {}
+CACHE_TTL = 120  # seconds
+
+
+def _get_cached(key: str):
+    entry = _inv_cache.get(key)
+    if entry and (time.time() - entry[0]) < CACHE_TTL:
+        return entry[1]
+    return None
+
+
+def _set_cached(key: str, value):
+    _inv_cache[key] = (time.time(), value)
+
+
+# ── UTC date range helper (index-friendly) ────────────────────────────
+def _date_to_utc_range(d_from: date, d_to: date) -> tuple[datetime, datetime]:
+    """Convert local dates to UTC datetime range for WHERE on raw UTC columns."""
+    tz = get_effective_timezone()
+    local_tz = ZoneInfo(tz)
+    start_local = datetime(d_from.year, d_from.month, d_from.day, 0, 0, 0, tzinfo=local_tz)
+    next_day = d_to + timedelta(days=1)
+    end_local = datetime(next_day.year, next_day.month, next_day.day, 0, 0, 0, tzinfo=local_tz)
+    utc = ZoneInfo("UTC")
+    return (
+        start_local.astimezone(utc).replace(tzinfo=None),
+        end_local.astimezone(utc).replace(tzinfo=None),
+    )
 
 
 def _product_name():
@@ -13,8 +57,11 @@ def _product_name():
 
 
 async def get_inventory_summary(db: AsyncSession):
-    internal_locations = select(StockLocation.id).where(StockLocation.usage == "internal")
+    cached = _get_cached("inv_summary")
+    if cached:
+        return cached
 
+    internal_locations = select(StockLocation.id).where(StockLocation.usage == "internal")
     result = await db.execute(
         select(
             func.count(func.distinct(StockQuant.product_id)).label("unique_products"),
@@ -23,12 +70,14 @@ async def get_inventory_summary(db: AsyncSession):
         ).where(StockQuant.location_id.in_(internal_locations))
     )
     row = result.one()
-    return {
+    data = {
         "unique_products": row.unique_products,
         "total_quantity": float(row.total_qty),
         "total_reserved": float(row.total_reserved),
         "available_quantity": float(row.total_qty) - float(row.total_reserved),
     }
+    _set_cached("inv_summary", data)
+    return data
 
 
 async def get_stock_levels(
@@ -38,6 +87,11 @@ async def get_stock_levels(
     offset: int = 0,
     search: str | None = None,
 ):
+    cache_key = f"stock_levels:{location_id}:{limit}:{offset}:{search}"
+    cached = _get_cached(cache_key)
+    if cached:
+        return cached
+
     internal_locations = select(StockLocation.id).where(StockLocation.usage == "internal")
 
     filters = [StockQuant.location_id.in_(internal_locations)]
@@ -54,9 +108,8 @@ async def get_stock_levels(
     if search:
         count_q = count_q.join(ProductProduct, StockQuant.product_id == ProductProduct.id).join(ProductTemplate, ProductProduct.product_tmpl_id == ProductTemplate.id)
     count_q = count_q.where(*filters)
-    total = (await db.execute(count_q)).scalar()
 
-    result = await db.execute(
+    result_q = (
         select(
             ProductTemplate.id.label("product_id"),
             _product_name().label("product_name"),
@@ -74,6 +127,18 @@ async def get_stock_levels(
         .offset(offset)
         .limit(limit)
     )
+
+    # Run count + fetch in parallel with separate sessions
+    async def run_count():
+        async with OdooSessionLocal() as s:
+            return (await s.execute(count_q)).scalar()
+
+    async def run_fetch():
+        async with OdooSessionLocal() as s:
+            return (await s.execute(result_q)).all()
+
+    total, rows = await asyncio.gather(run_count(), run_fetch())
+
     items = [
         {
             "product_id": row.product_id,
@@ -83,9 +148,11 @@ async def get_stock_levels(
             "reserved": float(row.reserved),
             "available": float(row.available),
         }
-        for row in result.all()
+        for row in rows
     ]
-    return {"total": total, "items": items}
+    data = {"total": total, "items": items}
+    _set_cached(cache_key, data)
+    return data
 
 
 async def get_stock_movements(
@@ -98,20 +165,29 @@ async def get_stock_movements(
     limit: int = 50,
 ):
     filters = [StockMove.state == state]
-    if date_from:
-        filters.append(local_date(StockMove.date) >= date_from)
-    if date_to:
-        filters.append(local_date(StockMove.date) <= date_to)
+
+    # Use UTC range for index-friendly filtering (instead of local_date wrapper)
+    if date_from and date_to:
+        utc_start, utc_end = _date_to_utc_range(date_from, date_to)
+        filters.append(StockMove.date >= utc_start)
+        filters.append(StockMove.date < utc_end)
+    elif date_from:
+        utc_start, _ = _date_to_utc_range(date_from, date_from)
+        filters.append(StockMove.date >= utc_start)
+    elif date_to:
+        _, utc_end = _date_to_utc_range(date_to, date_to)
+        filters.append(StockMove.date < utc_end)
+
     if product_id:
         filters.append(StockMove.product_id == product_id)
 
+    # Use JOINs for location names instead of correlated subqueries
+    src_loc = StockLocation.__table__.alias("src_loc")
+    dst_loc = StockLocation.__table__.alias("dst_loc")
+
     count_q = select(func.count(StockMove.id)).where(*filters)
-    total = (await db.execute(count_q)).scalar()
 
-    src = select(StockLocation.name).where(StockLocation.id == StockMove.location_id).correlate(StockMove).scalar_subquery()
-    dest = select(StockLocation.name).where(StockLocation.id == StockMove.location_dest_id).correlate(StockMove).scalar_subquery()
-
-    result = await db.execute(
+    data_q = (
         select(
             StockMove.id,
             StockMove.reference,
@@ -120,16 +196,30 @@ async def get_stock_movements(
             StockMove.quantity,
             StockMove.date,
             StockMove.origin,
-            src.label("source_location"),
-            dest.label("dest_location"),
+            src_loc.c.name.label("source_location"),
+            dst_loc.c.name.label("dest_location"),
         )
         .join(ProductProduct, StockMove.product_id == ProductProduct.id)
         .join(ProductTemplate, ProductProduct.product_tmpl_id == ProductTemplate.id)
+        .join(src_loc, StockMove.location_id == src_loc.c.id, isouter=True)
+        .join(dst_loc, StockMove.location_dest_id == dst_loc.c.id, isouter=True)
         .where(*filters)
         .order_by(StockMove.date.desc())
         .offset(offset)
         .limit(limit)
     )
+
+    # Parallel count + fetch
+    async def run_count():
+        async with OdooSessionLocal() as s:
+            return (await s.execute(count_q)).scalar()
+
+    async def run_fetch():
+        async with OdooSessionLocal() as s:
+            return (await s.execute(data_q)).all()
+
+    total, rows = await asyncio.gather(run_count(), run_fetch())
+
     moves = [
         {
             "id": row.id,
@@ -142,7 +232,7 @@ async def get_stock_movements(
             "source_location": row.source_location,
             "dest_location": row.dest_location,
         }
-        for row in result.all()
+        for row in rows
     ]
     return {"total": total, "moves": moves}
 
@@ -153,8 +243,8 @@ async def get_product_detail(
     offset: int = 0,
     limit: int = 20,
 ):
-    """Product detail: info, stock by location, recent movements."""
-    # Product info
+    """Product detail: info, stock by location, recent movements — queries run in parallel."""
+    # Product info (must run first to verify product exists)
     prod_result = await db.execute(
         select(
             ProductTemplate.id, _product_name().label("name"),
@@ -167,40 +257,74 @@ async def get_product_detail(
     if not product:
         return None
 
-    # Get all product.product variants for this template
-    variant_ids_q = select(ProductProduct.id).where(
-        ProductProduct.product_tmpl_id == product_id
-    )
-
-    # Aggregate stock totals
+    variant_ids_q = select(ProductProduct.id).where(ProductProduct.product_tmpl_id == product_id)
     internal_locations = select(StockLocation.id).where(StockLocation.usage == "internal")
-    stock_agg_result = await db.execute(
-        select(
-            func.coalesce(func.sum(StockQuant.quantity), 0).label("on_hand"),
-            func.coalesce(func.sum(StockQuant.reserved_quantity), 0).label("reserved"),
-        ).where(
-            StockQuant.product_id.in_(variant_ids_q),
-            StockQuant.location_id.in_(internal_locations),
-        )
-    )
-    stock_agg = stock_agg_result.one()
+    move_filters = [StockMove.product_id.in_(variant_ids_q), StockMove.state == "done"]
 
-    # Stock by location
-    stock_by_loc_result = await db.execute(
-        select(
-            StockLocation.complete_name.label("location_name"),
-            func.coalesce(func.sum(StockQuant.quantity), 0).label("on_hand"),
-            func.coalesce(func.sum(StockQuant.reserved_quantity), 0).label("reserved"),
-        )
-        .join(StockLocation, StockQuant.location_id == StockLocation.id)
-        .where(
-            StockQuant.product_id.in_(variant_ids_q),
-            StockLocation.usage == "internal",
-        )
-        .group_by(StockLocation.id, StockLocation.complete_name)
-        .having(func.sum(StockQuant.quantity) != 0)
-        .order_by(func.sum(StockQuant.quantity).desc())
+    # Location name JOINs for movements
+    src_loc = StockLocation.__table__.alias("src_loc")
+    dst_loc = StockLocation.__table__.alias("dst_loc")
+
+    # Run all 4 independent queries in parallel
+    async def get_stock_agg():
+        async with OdooSessionLocal() as s:
+            r = await s.execute(
+                select(
+                    func.coalesce(func.sum(StockQuant.quantity), 0).label("on_hand"),
+                    func.coalesce(func.sum(StockQuant.reserved_quantity), 0).label("reserved"),
+                ).where(
+                    StockQuant.product_id.in_(variant_ids_q),
+                    StockQuant.location_id.in_(internal_locations),
+                )
+            )
+            return r.one()
+
+    async def get_stock_by_loc():
+        async with OdooSessionLocal() as s:
+            r = await s.execute(
+                select(
+                    StockLocation.complete_name.label("location_name"),
+                    func.coalesce(func.sum(StockQuant.quantity), 0).label("on_hand"),
+                    func.coalesce(func.sum(StockQuant.reserved_quantity), 0).label("reserved"),
+                )
+                .join(StockLocation, StockQuant.location_id == StockLocation.id)
+                .where(
+                    StockQuant.product_id.in_(variant_ids_q),
+                    StockLocation.usage == "internal",
+                )
+                .group_by(StockLocation.id, StockLocation.complete_name)
+                .having(func.sum(StockQuant.quantity) != 0)
+                .order_by(func.sum(StockQuant.quantity).desc())
+            )
+            return r.all()
+
+    async def get_move_count():
+        async with OdooSessionLocal() as s:
+            return (await s.execute(select(func.count(StockMove.id)).where(*move_filters))).scalar()
+
+    async def get_moves():
+        async with OdooSessionLocal() as s:
+            r = await s.execute(
+                select(
+                    StockMove.id, StockMove.reference,
+                    StockMove.quantity, StockMove.date,
+                    StockMove.origin,
+                    src_loc.c.name.label("source_location"),
+                    dst_loc.c.name.label("dest_location"),
+                )
+                .join(src_loc, StockMove.location_id == src_loc.c.id, isouter=True)
+                .join(dst_loc, StockMove.location_dest_id == dst_loc.c.id, isouter=True)
+                .where(*move_filters)
+                .order_by(StockMove.date.desc())
+                .offset(offset)
+                .limit(limit)
+            )
+            return r.all()
+
+    stock_agg, loc_rows, move_count, move_rows = await asyncio.gather(
+        get_stock_agg(), get_stock_by_loc(), get_move_count(), get_moves()
     )
+
     locations = [
         {
             "location": row.location_name,
@@ -208,34 +332,9 @@ async def get_product_detail(
             "reserved": float(row.reserved),
             "available": float(row.on_hand) - float(row.reserved),
         }
-        for row in stock_by_loc_result.all()
+        for row in loc_rows
     ]
 
-    # Recent stock movements (paginated)
-    move_filters = [
-        StockMove.product_id.in_(variant_ids_q),
-        StockMove.state == "done",
-    ]
-    move_count = (await db.execute(
-        select(func.count(StockMove.id)).where(*move_filters)
-    )).scalar()
-
-    src = select(StockLocation.name).where(StockLocation.id == StockMove.location_id).correlate(StockMove).scalar_subquery()
-    dest = select(StockLocation.name).where(StockLocation.id == StockMove.location_dest_id).correlate(StockMove).scalar_subquery()
-
-    moves_result = await db.execute(
-        select(
-            StockMove.id, StockMove.reference,
-            StockMove.quantity, StockMove.date,
-            StockMove.origin,
-            src.label("source_location"),
-            dest.label("dest_location"),
-        )
-        .where(*move_filters)
-        .order_by(StockMove.date.desc())
-        .offset(offset)
-        .limit(limit)
-    )
     moves = [
         {
             "id": r.id,
@@ -246,7 +345,7 @@ async def get_product_detail(
             "source_location": r.source_location,
             "dest_location": r.dest_location,
         }
-        for r in moves_result.all()
+        for r in move_rows
     ]
 
     return {
@@ -273,6 +372,10 @@ async def get_product_detail(
 
 
 async def get_stock_by_warehouse(db: AsyncSession):
+    cached = _get_cached("stock_by_warehouse")
+    if cached:
+        return cached
+
     result = await db.execute(
         select(
             StockWarehouse.id.label("warehouse_id"),
@@ -285,7 +388,7 @@ async def get_stock_by_warehouse(db: AsyncSession):
         .group_by(StockWarehouse.id, StockWarehouse.name)
         .order_by(StockWarehouse.name)
     )
-    return [
+    data = [
         {
             "warehouse_id": row.warehouse_id,
             "warehouse_name": row.warehouse_name,
@@ -294,3 +397,5 @@ async def get_stock_by_warehouse(db: AsyncSession):
         }
         for row in result.all()
     ]
+    _set_cached("stock_by_warehouse", data)
+    return data

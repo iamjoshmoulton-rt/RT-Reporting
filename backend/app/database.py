@@ -59,9 +59,10 @@ app_engine = create_async_engine(
 odoo_engine = create_async_engine(
     odoo_db_url,
     echo=False,
-    pool_size=5,
-    max_overflow=10,
+    pool_size=15,
+    max_overflow=20,
     pool_pre_ping=True,
+    pool_recycle=300,
     connect_args=_needs_ssl(settings.odoo_database_url),
 )
 

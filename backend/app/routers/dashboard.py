@@ -1,8 +1,11 @@
+import asyncio
+import time
 from datetime import date, timedelta
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_odoo_db
+from app.database import get_odoo_db, OdooSessionLocal
 from app.auth.dependencies import get_current_user, require_permission
 from app.auth.models import User
 from app.services import (
@@ -12,6 +15,10 @@ from app.services import (
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
+# ── Response cache (2-min TTL) ────────────────────────────────────────
+_dashboard_cache: dict[str, tuple[float, dict]] = {}
+CACHE_TTL = 120  # seconds
+
 
 def _pct(current: float | int, previous: float | int) -> float | None:
     if previous == 0:
@@ -19,41 +26,58 @@ def _pct(current: float | int, previous: float | int) -> float | None:
     return round(((current - previous) / abs(previous)) * 100, 1)
 
 
+async def _run_with_session(coro_func, *args):
+    """Run a service function with its own DB session (for parallel execution)."""
+    async with OdooSessionLocal() as session:
+        return await coro_func(session, *args)
+
+
 @router.get("/summary")
 async def dashboard_summary(
     date_from: date | None = Query(None),
     date_to: date | None = Query(None),
-    db: AsyncSession = Depends(get_odoo_db),
     _user: User = Depends(get_current_user),
 ):
-    # Default to current month if no dates supplied
     today = date.today()
     df = date_from or today.replace(day=1)
     dt = date_to or today
 
-    sales = await sales_service.get_sales_summary(db, df, dt)
-    procurement = await procurement_service.get_procurement_summary(db, df, dt)
-    accounting = await accounting_service.get_accounting_summary(db, df, dt)
-    inventory = await inventory_service.get_inventory_summary(db)
-    helpdesk = await helpdesk_service.get_helpdesk_summary(db, df, dt)
-    crm = await crm_service.get_crm_summary(db, df, dt)
-    manufacturing = await manufacturing_service.get_manufacturing_summary(db, df, dt)
-    projects = await projects_service.get_projects_summary(db, df, dt)
+    # Check cache
+    cache_key = f"summary:{df}:{dt}"
+    cached = _dashboard_cache.get(cache_key)
+    if cached and (time.time() - cached[0]) < CACHE_TTL:
+        return cached[1]
 
-    # Calculate previous period (same length, immediately before)
+    # Calculate previous period
     delta = dt - df
     comp_to = df - timedelta(days=1)
     comp_from = comp_to - delta
 
-    prev_sales = await sales_service.get_sales_summary(db, comp_from, comp_to)
-    prev_procurement = await procurement_service.get_procurement_summary(db, comp_from, comp_to)
-    prev_accounting = await accounting_service.get_accounting_summary(db, comp_from, comp_to)
-    prev_helpdesk = await helpdesk_service.get_helpdesk_summary(db, comp_from, comp_to)
-    prev_crm = await crm_service.get_crm_summary(db, comp_from, comp_to)
-    prev_manufacturing = await manufacturing_service.get_manufacturing_summary(db, comp_from, comp_to)
-    prev_projects = await projects_service.get_projects_summary(db, comp_from, comp_to)
+    # Run ALL 15 queries in parallel (each with its own DB session)
+    (
+        sales, procurement, accounting, inventory,
+        helpdesk, crm, manufacturing, projects,
+        prev_sales, prev_procurement, prev_accounting,
+        prev_helpdesk, prev_crm, prev_manufacturing, prev_projects,
+    ) = await asyncio.gather(
+        _run_with_session(sales_service.get_sales_summary, df, dt),
+        _run_with_session(procurement_service.get_procurement_summary, df, dt),
+        _run_with_session(accounting_service.get_accounting_summary, df, dt),
+        _run_with_session(inventory_service.get_inventory_summary),
+        _run_with_session(helpdesk_service.get_helpdesk_summary, df, dt),
+        _run_with_session(crm_service.get_crm_summary, df, dt),
+        _run_with_session(manufacturing_service.get_manufacturing_summary, df, dt),
+        _run_with_session(projects_service.get_projects_summary, df, dt),
+        _run_with_session(sales_service.get_sales_summary, comp_from, comp_to),
+        _run_with_session(procurement_service.get_procurement_summary, comp_from, comp_to),
+        _run_with_session(accounting_service.get_accounting_summary, comp_from, comp_to),
+        _run_with_session(helpdesk_service.get_helpdesk_summary, comp_from, comp_to),
+        _run_with_session(crm_service.get_crm_summary, comp_from, comp_to),
+        _run_with_session(manufacturing_service.get_manufacturing_summary, comp_from, comp_to),
+        _run_with_session(projects_service.get_projects_summary, comp_from, comp_to),
+    )
 
-    return {
+    result = {
         "sales": sales,
         "procurement": procurement,
         "accounting": accounting,
@@ -77,6 +101,9 @@ async def dashboard_summary(
             "open_tasks": _pct(projects["open_tasks"], prev_projects["open_tasks"]),
         },
     }
+
+    _dashboard_cache[cache_key] = (time.time(), result)
+    return result
 
 
 @router.get("/revenue-trend")
