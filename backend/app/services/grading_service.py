@@ -4,11 +4,14 @@ Performance optimizations:
 1. Location ID cache — pre-resolve stock_location IDs, avoid JOINs
 2. UTC date range — filter on raw column (index-friendly) instead of function wrapper
 3. Combined overview — 4 queries in parallel via asyncio.gather
-4. Response cache — 2-min TTL for overview results (data is from read replica anyway)
+4. Response cache — 15-min TTL for overview results (data is from read replica anyway)
 5. Parallel count+fetch for items endpoint
+6. Background pre-warm — populate cache for common date ranges on startup
+7. Plain UTC date for daily grouping — avoids expensive AT TIME ZONE per row
 """
 
 import asyncio
+import logging
 import time
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -17,8 +20,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.odoo_models.inventory import StockMoveLine, StockLocation
 from app.odoo_models.partners import ProductProduct, ProductTemplate
-from app.services.tz import local_date, get_effective_timezone
+from app.services.tz import get_effective_timezone
 from app.database import OdooSessionLocal
+
+logger = logging.getLogger(__name__)
 
 
 VALID_GRADES = ["A", "B", "C", "D", "F", "New (In Box)", "New (Open Box)"]
@@ -57,7 +62,7 @@ async def _ensure_location_ids(db: AsyncSession):
 # ── Response cache (TTL-based) ────────────────────────────────────────
 
 _response_cache: dict[str, tuple[float, dict]] = {}
-CACHE_TTL = 120  # seconds
+CACHE_TTL = 900  # 15 minutes — read-replica data is inherently stale
 
 
 def _cache_key(prefix: str, view: str, date_from: date, date_to: date) -> str:
@@ -206,7 +211,9 @@ async def get_grading_summary(
     is_current = and_(StockMoveLine.date >= cur_utc_start, StockMoveLine.date < cur_utc_end)
     is_prev = and_(StockMoveLine.date >= prev_utc_start, StockMoveLine.date < prev_utc_end)
 
-    dt = local_date(StockMoveLine.date)
+    # Use plain UTC date for distinct-day counting — avoids expensive AT TIME ZONE per row.
+    # Slight timezone shift doesn't meaningfully affect "average items per day" metric.
+    dt = func.date(StockMoveLine.date)
 
     q = (
         select(
@@ -298,9 +305,10 @@ async def get_daily_grade_data(
     await _ensure_location_ids(db)
     domain = _domain_filters(view)
 
+    # Use plain UTC date for daily grouping — avoids AT TIME ZONE per row.
     sub = (
         select(
-            local_date(StockMoveLine.date).label("dt"),
+            func.date(StockMoveLine.date).label("dt"),
             ProductProduct.grade.label("grade"),
         )
         .select_from(StockMoveLine)
@@ -389,7 +397,7 @@ async def get_grading_overview(
     db: AsyncSession, view: str,
     date_from: date, date_to: date,
 ):
-    """Combined endpoint with 2-min response cache + parallel query execution."""
+    """Combined endpoint with 15-min response cache + parallel query execution."""
     await _ensure_location_ids(db)
 
     cache_key = _cache_key("overview", view, date_from, date_to)
@@ -442,19 +450,37 @@ async def get_grading_items(
         view, date_from, date_to, search, grade, category, cost_min, cost_max,
     )
 
-    # Run count and fetch in parallel
-    count_q = select(func.count()).select_from(q.subquery())
     items_q = q.order_by(StockMoveLine.date.desc()).offset(offset).limit(limit)
 
-    async def _count():
-        async with OdooSessionLocal() as session:
-            return (await session.execute(count_q)).scalar()
+    # Optimisation: when no user filters are active we can pull the total count
+    # from the cached overview (which already ran the same base query).  This
+    # saves a full COUNT(*) round-trip to the remote RDS.
+    has_extra_filters = any(v for v in [search, grade, category, cost_min, cost_max])
+    cached_total = None
+    if not has_extra_filters and date_from and date_to:
+        overview_key = _cache_key("overview", view, date_from, date_to)
+        overview_cached = _get_cached(overview_key)
+        if overview_cached:
+            cached_total = overview_cached["summary"]["total_items"]
 
-    async def _fetch():
+    if cached_total is not None:
+        # Only need the paginated fetch — count comes from overview cache
         async with OdooSessionLocal() as session:
-            return (await session.execute(items_q)).all()
+            rows = (await session.execute(items_q)).all()
+        total = cached_total
+    else:
+        # Run count and fetch in parallel
+        count_q = select(func.count()).select_from(q.subquery())
 
-    total, rows = await asyncio.gather(_count(), _fetch())
+        async def _count():
+            async with OdooSessionLocal() as session:
+                return (await session.execute(count_q)).scalar()
+
+        async def _fetch():
+            async with OdooSessionLocal() as session:
+                return (await session.execute(items_q)).all()
+
+        total, rows = await asyncio.gather(_count(), _fetch())
 
     result = {
         "total": total,
@@ -474,3 +500,56 @@ async def get_grading_items(
     }
     _set_cached(items_cache_key, result)
     return result
+
+
+# ── Background pre-warming ────────────────────────────────────────────
+
+
+async def prewarm_cache():
+    """Pre-populate cache for common date ranges on both views.
+
+    Called once on app startup so the first user gets a cache hit.
+    """
+    today = date.today()
+    this_month_start = today.replace(day=1)
+    ytd_start = today.replace(month=1, day=1)
+    ranges = [
+        (this_month_start, today),              # This month (default preset)
+        (today - timedelta(days=6), today),     # Last 7 days
+        (today - timedelta(days=29), today),    # Last 30 days
+        (today - timedelta(days=89), today),    # Last 90 days
+        (ytd_start, today),                     # Year to date
+    ]
+    views = ["total-stocked", "processed-stock"]
+
+    print(f"[PREWARM] Starting grading cache pre-warm: {len(ranges)} ranges × {len(views)} views")
+    t0 = time.time()
+
+    # Ensure location cache is ready before running queries
+    async with OdooSessionLocal() as db:
+        await _ensure_location_ids(db)
+
+    for view in views:
+        for d_from, d_to in ranges:
+            # 1) Overview (summary + grades + chart + categories)
+            cache_key = _cache_key("overview", view, d_from, d_to)
+            if not _get_cached(cache_key):
+                try:
+                    async with OdooSessionLocal() as db:
+                        await get_grading_overview(db, view, d_from, d_to)
+                    print(f"[PREWARM]   overview  {view} {d_from}→{d_to}")
+                except Exception as exc:
+                    print(f"[PREWARM]   FAIL overview {view} {d_from}→{d_to}: {exc}")
+
+            # 2) Items page-1 (default params, no filters)
+            items_key = f"items:{view}:{d_from}:{d_to}:None:None:None:None:None:0:50"
+            if not _get_cached(items_key):
+                try:
+                    async with OdooSessionLocal() as db:
+                        await get_grading_items(db, view, d_from, d_to)
+                    print(f"[PREWARM]   items     {view} {d_from}→{d_to}")
+                except Exception as exc:
+                    print(f"[PREWARM]   FAIL items {view} {d_from}→{d_to}: {exc}")
+
+    elapsed = time.time() - t0
+    print(f"[PREWARM] Grading cache pre-warm complete in {elapsed:.1f}s")

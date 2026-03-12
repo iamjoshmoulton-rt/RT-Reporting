@@ -24,7 +24,9 @@ export function hasPermission(
 
 export const NAV_PERMISSIONS: Record<string, string> = {
   '/dashboard': 'dashboard.kpi_revenue',
+  '/sales-dashboard': 'sales.revenue_chart',
   '/sales': 'sales.revenue_chart',
+  '/procurement-dashboard': 'procurement.orders_chart',
   '/procurement': 'procurement.orders_chart',
   '/accounting': 'accounting.pl_statement',
   '/inventory': 'inventory.stock_levels',

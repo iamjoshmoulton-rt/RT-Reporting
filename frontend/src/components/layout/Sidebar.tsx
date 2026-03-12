@@ -10,6 +10,7 @@ import {
   Factory,
   Headset,
   Target,
+  BarChart3,
   FolderKanban,
   UserCheck,
   Settings,
@@ -24,7 +25,9 @@ import { useEffect } from 'react'
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/sales-dashboard', label: 'Sales Dashboard', icon: BarChart3 },
   { path: '/sales', label: 'Sales', icon: ShoppingCart },
+  { path: '/procurement-dashboard', label: 'Procurement Dash', icon: BarChart3 },
   { path: '/procurement', label: 'Procurement', icon: Truck },
   { path: '/accounting', label: 'Accounting', icon: Receipt },
   { path: '/inventory', label: 'Inventory', icon: Package },

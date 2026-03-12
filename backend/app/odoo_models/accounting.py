@@ -22,6 +22,7 @@ class AccountMove(OdooBase):
     amount_total = Column(Float)
     amount_residual = Column(Float)
     payment_state = Column(String)  # not_paid, in_payment, paid, partial, reversed
+    invoice_user_id = Column(Integer)  # salesperson on the invoice
     invoice_origin = Column(String)
     ref = Column(String)
     create_date = Column(DateTime)

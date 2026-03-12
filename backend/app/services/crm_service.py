@@ -85,7 +85,7 @@ async def get_pipeline_by_stage(
         )
         .join(CrmStage, CrmLead.stage_id == CrmStage.id)
         .where(CrmLead.active.is_(True))
-        .group_by(_stage_name(), CrmStage.sequence)
+        .group_by(CrmStage.name, CrmStage.sequence)
         .order_by(CrmStage.sequence)
     )
     return [

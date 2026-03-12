@@ -7,7 +7,7 @@ import { installErrorCollector } from '@/hooks/useErrorCollector'
 import { cn } from '@/lib/utils'
 
 export function AppLayout() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => { installErrorCollector() }, [])

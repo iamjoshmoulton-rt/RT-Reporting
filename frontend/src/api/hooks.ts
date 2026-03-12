@@ -905,6 +905,7 @@ export function useGradingOverview(view: GradingView, params: DateRangeParams) {
     queryKey: ['grading', view, 'overview', params],
     queryFn: () => api.get<GradingOverview>(`/inventory/grading/${view}/overview`, params),
     enabled: !!params.date_from && !!params.date_to,
+    staleTime: 5 * 60 * 1000, // 5 min — avoids refetch on navigation
   })
 }
 
@@ -947,5 +948,59 @@ export function useGradingItems(view: GradingView, params: DateRangeParams & {
   return useQuery({
     queryKey: ['grading', view, 'items', params],
     queryFn: () => api.get<GradingItemsResponse>(`/inventory/grading/${view}/items`, params),
+    staleTime: 5 * 60 * 1000, // 5 min — avoids refetch on navigation
+  })
+}
+
+// --- Sales Dashboard ---
+
+type SalesDashboardParams = DateRangeParams & {
+  salesperson_id?: number
+  customer_id?: number
+  channel_id?: number
+  product_id?: number
+  category_id?: number
+  country_id?: number
+}
+
+export function useSalesDashboardOverview(params: SalesDashboardParams) {
+  return useQuery({
+    queryKey: ['sales-dashboard', 'overview', params],
+    queryFn: () => api.get('/sales-dashboard/overview', params),
+    enabled: !!params.date_from && !!params.date_to,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useSalesDashboardFilterOptions() {
+  return useQuery({
+    queryKey: ['sales-dashboard', 'filter-options'],
+    queryFn: () => api.get('/sales-dashboard/filter-options'),
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
+// --- Procurement Dashboard ---
+
+type ProcurementDashboardParams = DateRangeParams & {
+  vendor_id?: number
+  category_id?: number
+  buyer_id?: number
+}
+
+export function useProcurementDashboardOverview(params: ProcurementDashboardParams) {
+  return useQuery({
+    queryKey: ['procurement-dashboard', 'overview', params],
+    queryFn: () => api.get('/procurement-dashboard/overview', params),
+    enabled: !!params.date_from && !!params.date_to,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useProcurementDashboardFilterOptions() {
+  return useQuery({
+    queryKey: ['procurement-dashboard', 'filter-options'],
+    queryFn: () => api.get('/procurement-dashboard/filter-options'),
+    staleTime: 10 * 60 * 1000,
   })
 }

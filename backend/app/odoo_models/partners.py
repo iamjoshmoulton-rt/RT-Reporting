@@ -88,3 +88,33 @@ class ProductCategory(OdooBase):
     complete_name = Column(String)
     parent_id = Column(Integer)
     create_date = Column(DateTime)
+
+
+class ResCountry(OdooBase):
+    __tablename__ = "res_country"
+    __table_args__ = {"schema": "public"}
+
+    id = Column(Integer, primary_key=True)
+    name = Column(JSONB)  # {'en_US': 'United States'}
+    code = Column(String)
+
+
+class ResUsers(OdooBase):
+    """Odoo users — display name lives on the linked res_partner record."""
+    __tablename__ = "res_users"
+    __table_args__ = {"schema": "public"}
+
+    id = Column(Integer, primary_key=True)
+    partner_id = Column(Integer)  # FK → res_partner for display name
+    login = Column(String)
+    active = Column(Boolean, default=True)
+
+
+class CrmTeam(OdooBase):
+    """Sales teams / channels (e.g. WhatNot, Flip, Wholesale)."""
+    __tablename__ = "crm_team"
+    __table_args__ = {"schema": "public"}
+
+    id = Column(Integer, primary_key=True)
+    name = Column(JSONB)  # {'en_US': 'WhatNot'}
+    active = Column(Boolean, default=True)

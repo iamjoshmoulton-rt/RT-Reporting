@@ -27,8 +27,11 @@ from app.routers.projects import router as projects_router
 from app.routers.customers import router as customers_router
 from app.routers.user_preferences import router as user_preferences_router
 from app.routers.grading import router as grading_router
+from app.routers.sales_dashboard import router as sales_dashboard_router
+from app.routers.procurement_dashboard import router as procurement_dashboard_router
 from app.scheduler.scheduler import start_scheduler, stop_scheduler
 from app.middleware.timezone import UserTimezoneMiddleware
+from app.services.grading_service import prewarm_cache as prewarm_grading_cache
 
 
 async def _seed_app_settings(db):
@@ -59,6 +62,10 @@ async def lifespan(app: FastAPI):
         raise
 
     start_scheduler()
+
+    # Pre-warm grading cache in background so first page load is fast
+    import asyncio
+    asyncio.create_task(prewarm_grading_cache())
 
     yield
 
@@ -109,6 +116,8 @@ app.include_router(projects_router)
 app.include_router(customers_router)
 app.include_router(user_preferences_router)
 app.include_router(grading_router)
+app.include_router(sales_dashboard_router)
+app.include_router(procurement_dashboard_router)
 
 
 @app.get("/api/health")

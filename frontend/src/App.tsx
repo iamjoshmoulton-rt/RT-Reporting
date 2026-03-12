@@ -32,6 +32,8 @@ import { CRMLeadDetailPage } from '@/pages/CRMLeadDetail'
 import { ProjectTaskDetailPage } from '@/pages/ProjectTaskDetail'
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute'
 import { LandingRedirect } from '@/components/layout/LandingRedirect'
+import SalesDashboard from '@/pages/SalesDashboard'
+import ProcurementDashboard from '@/pages/ProcurementDashboard'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,8 +57,10 @@ function App() {
             <Route element={<AppLayout />}>
               <Route index element={<LandingRedirect />} />
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/sales-dashboard" element={<SalesDashboard />} />
               <Route path="/sales" element={<SalesPage />} />
               <Route path="/sales/orders/:id" element={<SalesOrderDetailPage />} />
+              <Route path="/procurement-dashboard" element={<ProcurementDashboard />} />
               <Route path="/procurement" element={<ProcurementPage />} />
               <Route path="/procurement/orders/:id" element={<PurchaseOrderDetailPage />} />
               <Route path="/accounting" element={<AccountingPage />} />

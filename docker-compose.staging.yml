@@ -1,0 +1,41 @@
+services:
+  app-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: rt_reporting
+      POSTGRES_USER: rt_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-rt_password}
+    volumes:
+      - app_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rt_user -d rt_reporting"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    env_file:
+      - ./backend/.env
+    environment:
+      APP_DATABASE_URL: postgresql+asyncpg://rt_user:${DB_PASSWORD:-rt_password}@app-db:5432/rt_reporting
+    depends_on:
+      app-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.staging
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  app_db_data:
