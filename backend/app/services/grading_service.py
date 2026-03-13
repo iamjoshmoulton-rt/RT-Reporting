@@ -39,23 +39,30 @@ _location_cache: dict[str, list[int]] = {}
 
 
 async def _ensure_location_ids(db: AsyncSession):
-    """Populate location ID cache if empty."""
+    """Populate location ID cache if empty.
+
+    Two views use different source filters:
+    - total-stocked: ANY move into WH/WhatNot (no source filter)
+    - processed-stock: only moves FROM Production into WH/WhatNot
+    """
     global _location_cache
     if _location_cache:
         return
 
     loc = StockLocation.__table__
 
+    # Production locations — source for processed-stock view
     src_q = select(loc.c.id).where(loc.c.complete_name.ilike("%Production%"))
     src_rows = (await db.execute(src_q)).scalars().all()
 
+    # WH/WhatNot destinations — shared by both views
     dst_q = select(loc.c.id).where(
         or_(loc.c.complete_name.ilike("%WhatNot%"), loc.c.complete_name.ilike("WH%")),
         ~loc.c.complete_name.ilike("%WH/Output%"),
     )
     dst_rows = (await db.execute(dst_q)).scalars().all()
 
-    _location_cache["src"] = list(src_rows)
+    _location_cache["src_production"] = list(src_rows)
     _location_cache["dst"] = list(dst_rows)
 
 
@@ -103,17 +110,23 @@ def _product_name():
 
 
 def _domain_filters(view: str):
-    """Core domain filters — uses cached location IDs (no location JOINs)."""
-    return [
+    """Core domain filters — view-aware location logic.
+
+    total-stocked:   destination = WH/WhatNot (any source)
+    processed-stock: source = Production, destination = WH/WhatNot
+    """
+    base = [
         StockMoveLine.state == "done",
         or_(ProductProduct.grade.is_(None), ProductProduct.grade != "Pending"),
-        StockMoveLine.location_id.in_(_location_cache["src"]),
         StockMoveLine.location_dest_id.in_(_location_cache["dst"]),
         or_(StockMoveLine.product_category_name.is_(None),
             ~StockMoveLine.product_category_name.ilike("%acces%")),
         or_(ProductTemplate.default_code.is_(None),
             ~ProductTemplate.default_code.ilike("%Flip-Product%")),
     ]
+    if view == "processed-stock":
+        base.append(StockMoveLine.location_id.in_(_location_cache["src_production"]))
+    return base
 
 
 def _date_where(d_from: date, d_to: date):
