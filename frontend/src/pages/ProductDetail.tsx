@@ -122,9 +122,9 @@ export function ProductDetailPage() {
 
             {/* Stock KPIs */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <KpiCard title="On Hand" value={formatNumber(stock?.on_hand ?? 0)} icon={Warehouse} />
-              <KpiCard title="Reserved" value={formatNumber(stock?.reserved ?? 0)} icon={ArrowRightLeft} />
-              <KpiCard title="Available" value={formatNumber(stock?.available ?? 0)} icon={BoxesIcon} />
+              <KpiCard title="On Hand" value={formatNumber(stock?.on_hand ?? 0)} icon={Warehouse} tooltip={{ title: 'On Hand Qty', formula: 'SUM(quantity)\nFROM stock.quant\nWHERE product = this product\n  AND location.usage = internal', source: 'stock_quant → quantity' }} />
+              <KpiCard title="Reserved" value={formatNumber(stock?.reserved ?? 0)} icon={ArrowRightLeft} tooltip={{ title: 'Reserved Qty', formula: 'SUM(reserved_quantity)\nFROM stock.quant\nReserved for pending deliveries/MOs', source: 'stock_quant → reserved_quantity' }} />
+              <KpiCard title="Available" value={formatNumber(stock?.available ?? 0)} icon={BoxesIcon} tooltip={{ title: 'Available Qty', formula: 'On Hand − Reserved\n(quantity − reserved_quantity)\nFree stock available for new orders', source: 'stock_quant → quantity − reserved_quantity' }} />
             </div>
 
             {/* Stock by location */}

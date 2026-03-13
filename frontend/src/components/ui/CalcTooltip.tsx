@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { HelpCircle } from 'lucide-react'
+import { Info } from 'lucide-react'
 
 export interface CalcTooltipData {
   title: string
@@ -56,7 +56,9 @@ export function CalcTooltip({ title, formula, source, className }: CalcTooltipPr
       onMouseLeave={close}
       onClick={(e) => { e.stopPropagation(); setShow(s => !s) }}
     >
-      <HelpCircle className="h-3.5 w-3.5 text-[var(--muted-foreground)] opacity-50 hover:opacity-100 transition-opacity cursor-help" />
+      <span className="inline-flex items-center justify-center rounded-full bg-[var(--muted)] p-0.5 hover:bg-primary/20 hover:text-primary transition-colors cursor-pointer">
+        <Info className="h-3.5 w-3.5 text-[var(--muted-foreground)]" />
+      </span>
 
       {show && (
         <div

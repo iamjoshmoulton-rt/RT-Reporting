@@ -132,24 +132,28 @@ export function HelpdeskTicketDetailPage() {
                 value={ticket.resolution_days != null ? `${ticket.resolution_days}d` : 'Open'}
                 icon={Timer}
                 accent="#48cae1"
+                tooltip={{ title: 'Resolution Time', formula: 'close_date − create_date (in days)\nShows "Open" if ticket not yet closed', source: 'helpdesk_ticket → close_date − create_date' }}
               />
               <KpiCard
                 title="SLA Status"
                 value={slaLabel}
                 icon={Shield}
                 accent={slaColor}
+                tooltip={{ title: 'SLA Status', formula: 'Met: closed before SLA deadline\nBreached: closed after SLA deadline\nN/A: no SLA policy assigned', source: 'helpdesk_ticket → sla_reached' }}
               />
               <KpiCard
                 title="Rating"
                 value={ticket.rating_last_value != null ? `${ticket.rating_last_value}/5` : 'N/A'}
                 icon={Star}
                 accent="#fcb900"
+                tooltip={{ title: 'Customer Rating', formula: 'Last customer satisfaction rating\nScale: 1 (poor) to 5 (excellent)\nN/A if no rating submitted', source: 'helpdesk_ticket → rating_last_value' }}
               />
               <KpiCard
                 title="Priority"
                 value={priority.label}
                 icon={AlertTriangle}
                 accent={priority.color}
+                tooltip={{ title: 'Priority Level', formula: '0 = Low, 1 = Medium\n2 = High, 3 = Urgent\nSet by agent or auto-rules', source: 'helpdesk_ticket → priority' }}
               />
             </div>
 

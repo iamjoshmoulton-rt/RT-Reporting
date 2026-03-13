@@ -138,10 +138,10 @@ export function CRMLeadDetailPage() {
 
             {/* KPIs */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <KpiCard title="Expected Revenue" value={formatCurrency(lead.expected_revenue)} icon={DollarSign} accent="#00d084" />
-              <KpiCard title="Prorated Revenue" value={formatCurrency(lead.prorated_revenue)} icon={DollarSign} accent="#48cae1" />
-              <KpiCard title="Probability" value={`${probability}%`} icon={Percent} accent="#9b51e0" />
-              <KpiCard title="Status" value={lead.active ? (lead.is_won ? 'Won' : 'Active') : 'Archived'} icon={Target} accent={lead.is_won ? '#00d084' : '#0693e3'} />
+              <KpiCard title="Expected Revenue" value={formatCurrency(lead.expected_revenue)} icon={DollarSign} accent="#00d084" tooltip={{ title: 'Expected Revenue', formula: 'Manual value set on lead\ncrm.lead → expected_revenue\nRepresents total deal value', source: 'crm_lead → expected_revenue' }} />
+              <KpiCard title="Prorated Revenue" value={formatCurrency(lead.prorated_revenue)} icon={DollarSign} accent="#48cae1" tooltip={{ title: 'Prorated Revenue', formula: 'Expected Revenue × (Probability / 100)\nWeighted value based on win likelihood', source: 'crm_lead → prorated_revenue' }} />
+              <KpiCard title="Probability" value={`${probability}%`} icon={Percent} accent="#9b51e0" tooltip={{ title: 'Win Probability', formula: 'Percentage likelihood of closing\nAuto-set by stage or manually adjusted\ncrm.lead → probability', source: 'crm_lead → probability' }} />
+              <KpiCard title="Status" value={lead.active ? (lead.is_won ? 'Won' : 'Active') : 'Archived'} icon={Target} accent={lead.is_won ? '#00d084' : '#0693e3'} tooltip={{ title: 'Lead Status', formula: 'Active: lead is open and in pipeline\nWon: lead marked as won\nArchived: lead deactivated (lost/inactive)', source: 'crm_lead → active, is_won' }} />
             </div>
 
             {/* Probability Progress */}

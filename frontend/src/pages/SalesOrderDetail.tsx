@@ -174,11 +174,11 @@ export function SalesOrderDetailPage() {
 
             {/* Financial KPIs */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-              <KpiCard title="Untaxed" value={formatCurrency(order.amount_untaxed)} icon={DollarSign} accent="#48cae1" />
-              <KpiCard title="Tax" value={formatCurrency(order.amount_tax)} icon={Receipt} accent="#fcb900" />
-              <KpiCard title="Total" value={formatCurrency(order.amount_total)} icon={DollarSign} accent="#00d084" />
-              <KpiCard title="Margin" value={formatCurrency(order.margin)} icon={TrendingUp} accent="#9b51e0" />
-              <KpiCard title="Margin %" value={`${order.margin_percent}%`} icon={Percent} accent="#f78da7" />
+              <KpiCard title="Untaxed" value={formatCurrency(order.amount_untaxed)} icon={DollarSign} accent="#48cae1" tooltip={{ title: 'Untaxed Amount', formula: 'SUM(price_subtotal)\nFROM sale.order.line\nfor this order (before tax)', source: 'sale_order → amount_untaxed' }} />
+              <KpiCard title="Tax" value={formatCurrency(order.amount_tax)} icon={Receipt} accent="#fcb900" tooltip={{ title: 'Tax Amount', formula: 'Total − Untaxed\n(amount_total − amount_untaxed)', source: 'sale_order → amount_tax' }} />
+              <KpiCard title="Total" value={formatCurrency(order.amount_total)} icon={DollarSign} accent="#00d084" tooltip={{ title: 'Order Total', formula: 'Untaxed + Tax\n(amount_untaxed + amount_tax)', source: 'sale_order → amount_total' }} />
+              <KpiCard title="Margin" value={formatCurrency(order.margin)} icon={TrendingUp} accent="#9b51e0" tooltip={{ title: 'Margin', formula: 'Revenue − Cost\nSUM(price_subtotal − product_cost × qty)\nacross all order lines', source: 'sale_order → margin' }} />
+              <KpiCard title="Margin %" value={`${order.margin_percent}%`} icon={Percent} accent="#f78da7" tooltip={{ title: 'Margin %', formula: '(Margin / Untaxed) × 100\nIf untaxed = 0, shows 0%', source: 'sale_order → margin / amount_untaxed' }} />
             </div>
 
             {/* Fulfillment progress */}

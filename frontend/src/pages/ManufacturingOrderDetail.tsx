@@ -151,9 +151,9 @@ export function ManufacturingOrderDetailPage() {
 
             {/* KPIs with accent */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <KpiCard title="Qty to Produce" value={formatNumber(order.product_qty)} icon={Package} accent="#ff6900" />
-              <KpiCard title="Qty Producing" value={formatNumber(order.qty_producing)} icon={Factory} accent="#48cae1" />
-              <KpiCard title="Progress" value={`${progressPct}%`} icon={Hammer} accent="#00d084" />
+              <KpiCard title="Qty to Produce" value={formatNumber(order.product_qty)} icon={Package} accent="#ff6900" tooltip={{ title: 'Qty to Produce', formula: 'Target quantity for this MO\nmrp.production → product_qty\nSet when MO is created from demand', source: 'mrp_production → product_qty' }} />
+              <KpiCard title="Qty Producing" value={formatNumber(order.qty_producing)} icon={Factory} accent="#48cae1" tooltip={{ title: 'Qty Producing', formula: 'Units currently in production\nmrp.production → qty_producing\nUpdated as work orders progress', source: 'mrp_production → qty_producing' }} />
+              <KpiCard title="Progress" value={`${progressPct}%`} icon={Hammer} accent="#00d084" tooltip={{ title: 'Production Progress', formula: '(Qty Producing / Qty to Produce) × 100\nRounded to nearest integer', source: 'mrp_production → qty_producing / product_qty' }} />
             </div>
 
             {/* Production progress */}

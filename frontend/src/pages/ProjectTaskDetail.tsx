@@ -148,15 +148,16 @@ export function ProjectTaskDetailPage() {
 
             {/* KPIs */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <KpiCard title="Allocated" value={formatHours(task.allocated_hours)} icon={Clock} accent="#48cae1" />
-              <KpiCard title="Time Spent" value={formatHours(task.effective_hours)} icon={Timer} accent="#0693e3" />
+              <KpiCard title="Allocated" value={formatHours(task.allocated_hours)} icon={Clock} accent="#48cae1" tooltip={{ title: 'Allocated Hours', formula: 'Planned hours set on this task\nproject.task → allocated_hours\nManual estimate by project manager', source: 'project_task → allocated_hours' }} />
+              <KpiCard title="Time Spent" value={formatHours(task.effective_hours)} icon={Timer} accent="#0693e3" tooltip={{ title: 'Time Spent', formula: 'SUM(unit_amount)\nFROM account.analytic.line\nWHERE task_id = this task\n(logged timesheets)', source: 'project_task → effective_hours' }} />
               <KpiCard
                 title="Overtime"
                 value={formatHours(task.overtime)}
                 icon={AlertTriangle}
                 accent={isOvertime ? '#ef4444' : '#94a3b8'}
+                tooltip={{ title: 'Overtime', formula: 'Time Spent − Allocated Hours\nPositive = over budget\nZero if under allocated hours', source: 'project_task → overtime' }}
               />
-              <KpiCard title="Progress" value={`${progress}%`} icon={TrendingUp} accent="#00d084" />
+              <KpiCard title="Progress" value={`${progress}%`} icon={TrendingUp} accent="#00d084" tooltip={{ title: 'Task Progress', formula: 'project.task → progress\nAuto-calculated or manually set\nbased on completion status', source: 'project_task → progress' }} />
             </div>
 
             {/* Task progress section */}

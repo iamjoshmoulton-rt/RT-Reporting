@@ -159,9 +159,9 @@ export function PurchaseOrderDetailPage() {
 
             {/* Financial KPIs with accent colors */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <KpiCard title="Untaxed" value={formatCurrency(order.amount_untaxed)} icon={DollarSign} accent="#48cae1" />
-              <KpiCard title="Tax" value={formatCurrency(order.amount_tax)} icon={Receipt} accent="#fcb900" />
-              <KpiCard title="Total" value={formatCurrency(order.amount_total)} icon={DollarSign} accent="#00d084" />
+              <KpiCard title="Untaxed" value={formatCurrency(order.amount_untaxed)} icon={DollarSign} accent="#48cae1" tooltip={{ title: 'Untaxed Amount', formula: 'SUM(price_subtotal)\nFROM purchase.order.line\nfor this PO (before tax)', source: 'purchase_order → amount_untaxed' }} />
+              <KpiCard title="Tax" value={formatCurrency(order.amount_tax)} icon={Receipt} accent="#fcb900" tooltip={{ title: 'Tax Amount', formula: 'Total − Untaxed\n(amount_total − amount_untaxed)', source: 'purchase_order → amount_tax' }} />
+              <KpiCard title="Total" value={formatCurrency(order.amount_total)} icon={DollarSign} accent="#00d084" tooltip={{ title: 'PO Total', formula: 'Untaxed + Tax\n(amount_untaxed + amount_tax)', source: 'purchase_order → amount_total' }} />
             </div>
 
             {/* Fulfillment progress */}

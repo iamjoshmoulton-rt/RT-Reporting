@@ -65,16 +65,16 @@ export function CustomersPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <PermissionGate resource="customers.summary">
-          <KpiCard title="Total Customers" value={formatNumber(summary?.total_customers ?? 0)} icon={Users} />
+          <KpiCard title="Total Customers" value={formatNumber(summary?.total_customers ?? 0)} icon={Users} tooltip={{ title: 'Total Customers', formula: 'COUNT(res.partner)\nWHERE customer_rank > 0\n  AND active = true', source: 'res_partner → customer_rank' }} />
         </PermissionGate>
         <PermissionGate resource="customers.summary">
-          <KpiCard title="Active Customers" value={formatNumber(summary?.active_customers ?? 0)} icon={UserCheck} />
+          <KpiCard title="Active Customers" value={formatNumber(summary?.active_customers ?? 0)} icon={UserCheck} tooltip={{ title: 'Active Customers', formula: 'COUNT(DISTINCT partner_id)\nFROM sale.order\nWHERE state = sale\n  AND date within selected period', source: 'sale_order → partner_id (distinct)' }} />
         </PermissionGate>
         <PermissionGate resource="customers.summary">
-          <KpiCard title="Total Revenue" value={formatCurrency(summary?.total_revenue ?? 0)} icon={DollarSign} />
+          <KpiCard title="Total Revenue" value={formatCurrency(summary?.total_revenue ?? 0)} icon={DollarSign} tooltip={{ title: 'Total Revenue', formula: 'SUM(amount_untaxed)\nFROM sale.order\nWHERE state = sale\n  AND date within selected period', source: 'sale_order → amount_untaxed' }} />
         </PermissionGate>
         <PermissionGate resource="customers.summary">
-          <KpiCard title="Avg Rev / Customer" value={formatCurrency(summary?.avg_revenue_per_customer ?? 0)} icon={TrendingUp} />
+          <KpiCard title="Avg Rev / Customer" value={formatCurrency(summary?.avg_revenue_per_customer ?? 0)} icon={TrendingUp} tooltip={{ title: 'Avg Revenue per Customer', formula: 'Total Revenue / Active Customers\nfor selected date range', source: 'sale_order → amount_untaxed / distinct partners' }} />
         </PermissionGate>
       </div>
 

@@ -43,6 +43,11 @@ export function DashboardWidget({ widgetType, dateFrom, dateTo }: DashboardWidge
             accent="#48cae1"
             trend={summary?.trends?.total_revenue ?? undefined}
             trendLabel="vs prev period"
+            tooltip={{
+              title: 'Total Revenue',
+              formula: 'SUM(price_subtotal)\nFROM account.move.line\nWHERE move_type = out_invoice\n  AND state = posted\n  AND date within selected period',
+              source: 'account_move_line → price_subtotal',
+            }}
           />
         )
       case 'kpi_orders':
@@ -54,6 +59,11 @@ export function DashboardWidget({ widgetType, dateFrom, dateTo }: DashboardWidge
             accent="#00d084"
             trend={summary?.trends?.avg_order_value ?? undefined}
             trendLabel="vs prev period"
+            tooltip={{
+              title: 'Average Order Value',
+              formula: 'Total Revenue / COUNT(DISTINCT sale.order)\nOnly confirmed orders (state = sale)\nin selected date range',
+              source: 'sale_order → amount_untaxed',
+            }}
           />
         )
       case 'kpi_gross_margin':
@@ -66,6 +76,11 @@ export function DashboardWidget({ widgetType, dateFrom, dateTo }: DashboardWidge
             accent="#9b51e0"
             trend={summary?.trends?.net_revenue ?? undefined}
             trendLabel="vs prev period"
+            tooltip={{
+              title: 'Net Revenue',
+              formula: 'Posted Customer Invoices\n− Posted Vendor Bills\n(move_type out_invoice − in_invoice)\nstate = posted, within date range',
+              source: 'account_move → amount_total_signed',
+            }}
           />
         )
       case 'kpi_receivables':
@@ -76,6 +91,11 @@ export function DashboardWidget({ widgetType, dateFrom, dateTo }: DashboardWidge
             subtitle={`${formatNumber(summary?.inventory.unique_products ?? 0)} products`}
             icon={Package}
             accent="#fcb900"
+            tooltip={{
+              title: 'Available Inventory',
+              formula: 'SUM(quantity) − SUM(reserved_quantity)\nFROM stock.quant\nWHERE location.usage = internal\n(current snapshot, not date-filtered)',
+              source: 'stock_quant → quantity, reserved_quantity',
+            }}
           />
         )
       case 'kpi_helpdesk':
@@ -88,6 +108,11 @@ export function DashboardWidget({ widgetType, dateFrom, dateTo }: DashboardWidge
             accent="#ff6900"
             trend={summary?.trends?.open_tickets ?? undefined}
             trendLabel="vs prev period"
+            tooltip={{
+              title: 'Open Tickets',
+              formula: 'COUNT(helpdesk.ticket)\nWHERE stage is not folded/closed\n  AND create_date within date range',
+              source: 'helpdesk_ticket → stage_id (not folded)',
+            }}
           />
         )
       case 'kpi_crm':
@@ -100,6 +125,11 @@ export function DashboardWidget({ widgetType, dateFrom, dateTo }: DashboardWidge
             accent="#0693e3"
             trend={summary?.trends?.pipeline_value ?? undefined}
             trendLabel="vs prev period"
+            tooltip={{
+              title: 'Pipeline Value',
+              formula: 'SUM(expected_revenue)\nFROM crm.lead\nWHERE stage is active (not won/lost)\n  AND create_date within date range',
+              source: 'crm_lead → expected_revenue',
+            }}
           />
         )
       case 'kpi_manufacturing':
@@ -112,6 +142,11 @@ export function DashboardWidget({ widgetType, dateFrom, dateTo }: DashboardWidge
             accent="#f78da7"
             trend={summary?.trends?.active_mos ?? undefined}
             trendLabel="vs prev period"
+            tooltip={{
+              title: 'Active Manufacturing Orders',
+              formula: 'COUNT(mrp.production)\nWHERE state IN (confirmed, progress)\n  AND date_start within date range',
+              source: 'mrp_production → state',
+            }}
           />
         )
       case 'kpi_projects':
@@ -124,6 +159,11 @@ export function DashboardWidget({ widgetType, dateFrom, dateTo }: DashboardWidge
             accent="#00d084"
             trend={summary?.trends?.open_tasks ?? undefined}
             trendLabel="vs prev period"
+            tooltip={{
+              title: 'Open Tasks',
+              formula: 'COUNT(project.task)\nWHERE stage is not folded\n  AND create_date within date range',
+              source: 'project_task → stage_id (not folded)',
+            }}
           />
         )
       case 'revenue_chart':

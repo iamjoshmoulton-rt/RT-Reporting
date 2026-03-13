@@ -119,16 +119,19 @@ export function CustomerDetailPage() {
                 title="Total Orders"
                 value={formatNumber(stats?.total_orders ?? 0)}
                 icon={ShoppingCart}
+                tooltip={{ title: 'Total Orders', formula: 'COUNT(sale.order)\nWHERE partner_id = this customer\n  AND state = sale', source: 'sale_order → partner_id' }}
               />
               <KpiCard
                 title="Total Revenue"
                 value={formatCurrency(stats?.total_revenue ?? 0)}
                 icon={DollarSign}
+                tooltip={{ title: 'Total Revenue', formula: 'SUM(amount_untaxed)\nFROM sale.order\nWHERE partner_id = this customer\n  AND state = sale', source: 'sale_order → amount_untaxed' }}
               />
               <KpiCard
                 title="Avg Order Value"
                 value={formatCurrency(stats?.avg_order_value ?? 0)}
                 icon={TrendingUp}
+                tooltip={{ title: 'Avg Order Value', formula: 'Total Revenue / Total Orders\nfor this customer', source: 'sale_order → amount_untaxed / count' }}
               />
             </div>
 
