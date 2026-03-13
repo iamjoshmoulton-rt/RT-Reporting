@@ -37,6 +37,7 @@ import ProcurementDashboard from '@/pages/ProcurementDashboard'
 import EcommerceInvoice from '@/pages/EcommerceInvoice'
 import EcommerceOrder from '@/pages/EcommerceOrder'
 import PricingHistory from '@/pages/PricingHistory'
+import PricingHistorySO from '@/pages/PricingHistorySO'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -87,6 +88,7 @@ function App() {
               <Route path="/ecommerce-invoice" element={<EcommerceInvoice />} />
               <Route path="/ecommerce-order" element={<EcommerceOrder />} />
               <Route path="/pricing-history" element={<PricingHistory />} />
+              <Route path="/pricing-history-so" element={<PricingHistorySO />} />
               <Route path="/customers" element={<CustomersPage />} />
               <Route path="/customers/:id" element={<CustomerDetailPage />} />
               <Route path="/alerts" element={<AlertsPage />} />

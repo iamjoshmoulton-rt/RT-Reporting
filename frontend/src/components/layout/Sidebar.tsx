@@ -27,6 +27,7 @@ const navItems = [
   { path: '/ecommerce-invoice', label: 'E-Com (Invoice)', icon: Store },
   { path: '/ecommerce-order', label: 'E-Com (Orders)', icon: Store },
   { path: '/pricing-history', label: 'Pricing History', icon: History },
+  { path: '/pricing-history-so', label: 'Pricing History (SO)', icon: History },
   { path: '/alerts', label: 'Alerts', icon: Bell },
   { path: '/report-builder', label: 'Report Builder', icon: Wrench },
   { path: '/settings', label: 'Settings', icon: Settings },

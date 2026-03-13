@@ -1061,3 +1061,22 @@ export function usePricingHistoryFilterOptions() {
     staleTime: 10 * 60 * 1000,
   })
 }
+
+// --- Pricing History SO ---
+
+export function usePricingHistorySOOverview(params: PricingHistoryParams) {
+  return useQuery({
+    queryKey: ['pricing-history-so', 'overview', params],
+    queryFn: () => api.get('/pricing-history-so/overview', params),
+    enabled: !!params.date_from && !!params.date_to,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function usePricingHistorySOFilterOptions() {
+  return useQuery({
+    queryKey: ['pricing-history-so', 'filter-options'],
+    queryFn: () => api.get('/pricing-history-so/filter-options'),
+    staleTime: 10 * 60 * 1000,
+  })
+}
