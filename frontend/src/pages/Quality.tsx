@@ -60,16 +60,20 @@ export function QualityPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <PermissionGate resource="quality.summary">
-          <KpiCard title="Total Checks" value={formatNumber(summary?.total_checks ?? 0)} icon={ClipboardCheck} />
+          <KpiCard title="Total Checks" value={formatNumber(summary?.total_checks ?? 0)} icon={ClipboardCheck}
+            tooltip={{ title: 'Total Checks', formula: 'COUNT(quality.check)\nWHERE create_date in selected range', source: 'quality.check' }} />
         </PermissionGate>
         <PermissionGate resource="quality.summary">
-          <KpiCard title="Pass Rate" value={`${summary?.pass_rate ?? 0}%`} icon={CheckCircle} />
+          <KpiCard title="Pass Rate" value={`${summary?.pass_rate ?? 0}%`} icon={CheckCircle}
+            tooltip={{ title: 'Pass Rate', formula: 'Passed checks / Total checks × 100\nWHERE quality_state = pass\n  AND create_date in selected range', source: 'quality.check' }} />
         </PermissionGate>
         <PermissionGate resource="quality.summary">
-          <KpiCard title="Open Alerts" value={formatNumber(summary?.open_alerts ?? 0)} icon={AlertOctagon} />
+          <KpiCard title="Open Alerts" value={formatNumber(summary?.open_alerts ?? 0)} icon={AlertOctagon}
+            tooltip={{ title: 'Open Alerts', formula: 'COUNT(quality.alert)\nWHERE stage is not done/cancelled', source: 'quality.alert' }} />
         </PermissionGate>
         <PermissionGate resource="quality.summary">
-          <KpiCard title="Checks This Period" value={formatNumber(summary?.checks_this_period ?? 0)} icon={Activity} />
+          <KpiCard title="Checks This Period" value={formatNumber(summary?.checks_this_period ?? 0)} icon={Activity}
+            tooltip={{ title: 'Checks This Period', formula: 'COUNT(quality.check)\nWHERE create_date in selected range\nSame as Total Checks for\ncurrent date filter', source: 'quality.check' }} />
         </PermissionGate>
       </div>
 

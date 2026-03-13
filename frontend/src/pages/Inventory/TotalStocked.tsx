@@ -43,16 +43,20 @@ export function TotalStockedPage() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <PermissionGate resource="inventory.stock_levels">
-          <KpiCard title="Total On Hand" value={summary ? formatNumber(summary.total_quantity) : undefined} icon={Package} loading={summaryLoading} />
+          <KpiCard title="Total On Hand" value={summary ? formatNumber(summary.total_quantity) : undefined} icon={Package} loading={summaryLoading}
+            tooltip={{ title: 'Total On Hand', formula: 'SUM(quantity)\nFROM stock.quant\nWHERE location is internal stock', source: 'stock.quant' }} />
         </PermissionGate>
         <PermissionGate resource="inventory.stock_levels">
-          <KpiCard title="Available" value={summary ? formatNumber(summary.available_quantity) : undefined} icon={BoxesIcon} loading={summaryLoading} />
+          <KpiCard title="Available" value={summary ? formatNumber(summary.available_quantity) : undefined} icon={BoxesIcon} loading={summaryLoading}
+            tooltip={{ title: 'Available', formula: 'SUM(quantity - reserved_quantity)\nFROM stock.quant\nWHERE location is internal stock', source: 'stock.quant' }} />
         </PermissionGate>
         <PermissionGate resource="inventory.stock_levels">
-          <KpiCard title="Reserved" value={summary ? formatNumber(summary.total_reserved) : undefined} icon={ArrowRightLeft} loading={summaryLoading} />
+          <KpiCard title="Reserved" value={summary ? formatNumber(summary.total_reserved) : undefined} icon={ArrowRightLeft} loading={summaryLoading}
+            tooltip={{ title: 'Reserved', formula: 'SUM(reserved_quantity)\nFROM stock.quant\nWHERE location is internal stock', source: 'stock.quant' }} />
         </PermissionGate>
         <PermissionGate resource="inventory.stock_levels">
-          <KpiCard title="Unique Products" value={summary ? formatNumber(summary.unique_products) : undefined} icon={Warehouse} loading={summaryLoading} />
+          <KpiCard title="Unique Products" value={summary ? formatNumber(summary.unique_products) : undefined} icon={Warehouse} loading={summaryLoading}
+            tooltip={{ title: 'Unique Products', formula: 'COUNT(DISTINCT product_id)\nFROM stock.quant\nWHERE location is internal stock\n  AND quantity > 0', source: 'stock.quant' }} />
         </PermissionGate>
       </div>
 

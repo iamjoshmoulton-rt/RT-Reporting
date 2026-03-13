@@ -177,6 +177,7 @@ export function GradingView({ view, title, subtitle }: GradingViewProps) {
             trend={summary?.trends?.total_items ?? undefined}
             accent="#48cae1"
             loading={overviewLoading}
+            tooltip={{ title: 'Total Items', formula: 'COUNT(stock.move.line)\nWHERE location is internal stock\n  AND date in selected range', source: 'stock.move.line' }}
           />
           <KpiCard
             title="Daily Average"
@@ -185,6 +186,7 @@ export function GradingView({ view, title, subtitle }: GradingViewProps) {
             trend={summary?.trends?.daily_average ?? undefined}
             accent="#f97316"
             loading={overviewLoading}
+            tooltip={{ title: 'Daily Average', formula: 'Total Items / COUNT(DISTINCT dates)\nAverage items graded per day' }}
           />
           <KpiCard
             title="Total Value"
@@ -193,6 +195,7 @@ export function GradingView({ view, title, subtitle }: GradingViewProps) {
             trend={summary?.trends?.total_value ?? undefined}
             accent="#22c55e"
             loading={overviewLoading}
+            tooltip={{ title: 'Total Value', formula: 'SUM(product_template.list_price)\nfor each graded item in range', source: 'stock.move.line → product.template' }}
           />
           <KpiCard
             title="Unique Products"
@@ -201,6 +204,7 @@ export function GradingView({ view, title, subtitle }: GradingViewProps) {
             trend={summary?.trends?.unique_products ?? undefined}
             accent="#a855f7"
             loading={overviewLoading}
+            tooltip={{ title: 'Unique Products', formula: 'COUNT(DISTINCT product_id)\nfrom graded items in date range', source: 'stock.move.line' }}
           />
         </div>
 

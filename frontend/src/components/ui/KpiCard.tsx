@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils'
 import type { LucideIcon } from 'lucide-react'
 import { TrendingUp, TrendingDown } from 'lucide-react'
+import { CalcTooltip, type CalcTooltipData } from './CalcTooltip'
 
 interface KpiCardProps {
   title: string
@@ -14,11 +15,12 @@ interface KpiCardProps {
   onClick?: () => void
   accent?: string
   loading?: boolean
+  tooltip?: CalcTooltipData
 }
 
 export function KpiCard({
   title, value, subtitle, icon: Icon, trend, trendLabel = 'vs prev period',
-  budget, className, onClick, accent, loading,
+  budget, className, onClick, accent, loading, tooltip,
 }: KpiCardProps) {
   const isLoading = loading || value === undefined
   const trendUp = trend !== undefined && trend >= 0
@@ -41,8 +43,9 @@ export function KpiCard({
 
       <div className="flex items-start justify-between p-5 pt-4">
         <div className="flex-1 min-w-0 space-y-1">
-          <p className="text-[11px] font-medium tracking-widest uppercase text-[var(--muted-foreground)]">
+          <p className="text-[11px] font-medium tracking-widest uppercase text-[var(--muted-foreground)] flex items-center gap-1.5">
             {title}
+            {tooltip && <CalcTooltip {...tooltip} />}
           </p>
           {isLoading ? (
             <div className="h-8 w-24 rounded bg-[var(--muted)] animate-pulse mt-1" />

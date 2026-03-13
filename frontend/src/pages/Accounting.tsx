@@ -76,16 +76,20 @@ export function AccountingPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <PermissionGate resource="accounting.pl_statement">
-          <KpiCard title="Net Revenue" value={formatCurrency(summary?.net_revenue ?? 0)} icon={TrendingUp} />
+          <KpiCard title="Net Revenue" value={formatCurrency(summary?.net_revenue ?? 0)} icon={TrendingUp}
+            tooltip={{ title: 'Net Revenue', formula: 'SUM(amount_total)\nFROM account.move\nWHERE move_type = out_invoice\n  AND state = posted\n  AND date in selected range\nMINUS credit notes', source: 'account.move' }} />
         </PermissionGate>
         <PermissionGate resource="accounting.pl_statement">
-          <KpiCard title="Invoices" value={formatNumber(summary?.invoices.count ?? 0)} subtitle={formatCurrency(summary?.invoices.total ?? 0)} icon={Receipt} />
+          <KpiCard title="Invoices" value={formatNumber(summary?.invoices.count ?? 0)} subtitle={formatCurrency(summary?.invoices.total ?? 0)} icon={Receipt}
+            tooltip={{ title: 'Invoices', formula: 'COUNT & SUM(amount_total)\nFROM account.move\nWHERE move_type = out_invoice\n  AND state = posted\n  AND date in selected range', source: 'account.move' }} />
         </PermissionGate>
         <PermissionGate resource="accounting.receivable_aging">
-          <KpiCard title="Outstanding Receivable" value={formatCurrency(summary?.invoices.outstanding ?? 0)} icon={AlertTriangle} />
+          <KpiCard title="Outstanding Receivable" value={formatCurrency(summary?.invoices.outstanding ?? 0)} icon={AlertTriangle}
+            tooltip={{ title: 'Outstanding Receivable', formula: 'SUM(amount_residual)\nFROM account.move\nWHERE move_type = out_invoice\n  AND state = posted\n  AND payment_state != paid', source: 'account.move' }} />
         </PermissionGate>
         <PermissionGate resource="accounting.payable_aging">
-          <KpiCard title="Outstanding Payable" value={formatCurrency(summary?.bills.outstanding ?? 0)} icon={DollarSign} />
+          <KpiCard title="Outstanding Payable" value={formatCurrency(summary?.bills.outstanding ?? 0)} icon={DollarSign}
+            tooltip={{ title: 'Outstanding Payable', formula: 'SUM(amount_residual)\nFROM account.move\nWHERE move_type = in_invoice\n  AND state = posted\n  AND payment_state != paid', source: 'account.move' }} />
         </PermissionGate>
       </div>
 

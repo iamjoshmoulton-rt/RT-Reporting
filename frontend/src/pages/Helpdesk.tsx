@@ -66,16 +66,20 @@ export function HelpdeskPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <PermissionGate resource="helpdesk.summary">
-          <KpiCard title="Open Tickets" value={formatNumber(summary?.open_tickets ?? 0)} icon={Ticket} />
+          <KpiCard title="Open Tickets" value={formatNumber(summary?.open_tickets ?? 0)} icon={Ticket}
+            tooltip={{ title: 'Open Tickets', formula: 'COUNT(helpdesk.ticket)\nWHERE stage is not closed/solved\n  AND active = true', source: 'helpdesk.ticket' }} />
         </PermissionGate>
         <PermissionGate resource="helpdesk.summary">
-          <KpiCard title="New This Period" value={formatNumber(summary?.new_tickets ?? 0)} icon={MailOpen} />
+          <KpiCard title="New This Period" value={formatNumber(summary?.new_tickets ?? 0)} icon={MailOpen}
+            tooltip={{ title: 'New This Period', formula: 'COUNT(helpdesk.ticket)\nWHERE create_date in selected range', source: 'helpdesk.ticket' }} />
         </PermissionGate>
         <PermissionGate resource="helpdesk.summary">
-          <KpiCard title="Closed This Period" value={formatNumber(summary?.closed_tickets ?? 0)} icon={MailCheck} />
+          <KpiCard title="Closed This Period" value={formatNumber(summary?.closed_tickets ?? 0)} icon={MailCheck}
+            tooltip={{ title: 'Closed This Period', formula: 'COUNT(helpdesk.ticket)\nWHERE close_date in selected range\n  AND stage is closed/solved', source: 'helpdesk.ticket' }} />
         </PermissionGate>
         <PermissionGate resource="helpdesk.summary">
-          <KpiCard title="Avg Resolution Days" value={`${summary?.avg_resolution_days ?? 0}d`} icon={Clock} />
+          <KpiCard title="Avg Resolution Days" value={`${summary?.avg_resolution_days ?? 0}d`} icon={Clock}
+            tooltip={{ title: 'Avg Resolution Days', formula: 'AVG(close_date - create_date)\nFROM helpdesk.ticket\nWHERE close_date IS NOT NULL\n  AND close_date in selected range', source: 'helpdesk.ticket' }} />
         </PermissionGate>
       </div>
 

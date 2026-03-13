@@ -65,16 +65,20 @@ export function ManufacturingPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <PermissionGate resource="manufacturing.summary">
-          <KpiCard title="Active MOs" value={formatNumber(summary?.active_mos ?? 0)} icon={Factory} />
+          <KpiCard title="Active MOs" value={formatNumber(summary?.active_mos ?? 0)} icon={Factory}
+            tooltip={{ title: 'Active MOs', formula: 'COUNT(mrp.production)\nWHERE state IN (confirmed, progress)\n  AND date_start in selected range', source: 'mrp.production' }} />
         </PermissionGate>
         <PermissionGate resource="manufacturing.summary">
-          <KpiCard title="Completed" value={formatNumber(summary?.completed ?? 0)} icon={CheckCircle} />
+          <KpiCard title="Completed" value={formatNumber(summary?.completed ?? 0)} icon={CheckCircle}
+            tooltip={{ title: 'Completed', formula: 'COUNT(mrp.production)\nWHERE state = done\n  AND date_finished in selected range', source: 'mrp.production' }} />
         </PermissionGate>
         <PermissionGate resource="manufacturing.summary">
-          <KpiCard title="Units Produced" value={formatNumber(summary?.units_produced ?? 0)} icon={Box} />
+          <KpiCard title="Units Produced" value={formatNumber(summary?.units_produced ?? 0)} icon={Box}
+            tooltip={{ title: 'Units Produced', formula: 'SUM(qty_produced)\nFROM mrp.production\nWHERE state = done\n  AND date_finished in selected range', source: 'mrp.production' }} />
         </PermissionGate>
         <PermissionGate resource="manufacturing.summary">
-          <KpiCard title="Avg Cycle (days)" value={String(summary?.avg_cycle_days ?? 0)} icon={Clock} />
+          <KpiCard title="Avg Cycle (days)" value={String(summary?.avg_cycle_days ?? 0)} icon={Clock}
+            tooltip={{ title: 'Avg Cycle (days)', formula: 'AVG(date_finished - date_start)\nFROM mrp.production\nWHERE state = done\n  AND date_finished in selected range', source: 'mrp.production' }} />
         </PermissionGate>
       </div>
 

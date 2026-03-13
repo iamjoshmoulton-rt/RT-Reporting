@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DollarSign, ShoppingCart, TrendingUp, BarChart3, Percent, Package, PieChart, Zap, X, Download } from 'lucide-react'
 import { KpiCard } from '@/components/ui/KpiCard'
+import type { CalcTooltipData } from '@/components/ui/CalcTooltip'
 import { DateRangeFilter } from '@/components/ui/DateRangeFilter'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { PermissionGate } from '@/components/ui/PermissionGate'
@@ -145,6 +146,7 @@ export function SalesPage() {
             trendLabel={trendLabel}
             budget={kpis?.invoiced_revenue_budget != null ? formatCurrency(kpis.invoiced_revenue_budget) : undefined}
             onClick={() => openDrilldown('invoiced_revenue')}
+            tooltip={{ title: 'Invoiced Revenue', formula: 'SUM(price_subtotal)\nFROM account.move.line\nWHERE move_type = out_invoice\n  AND state = posted', source: 'account.move.line' }}
           />
           <KpiCard
             title="Invoiced Margin"
@@ -155,6 +157,7 @@ export function SalesPage() {
             trendLabel={trendLabel}
             budget={kpis?.invoiced_margin_budget != null ? formatCurrency(kpis.invoiced_margin_budget) : undefined}
             onClick={() => openDrilldown('invoiced_margin')}
+            tooltip={{ title: 'Invoiced Margin', formula: 'SUM(price_subtotal - (qty × standard_price))\nFROM posted out_invoice lines', source: 'account.move.line + product.product' }}
           />
           <KpiCard
             title="Inv Margin %"
@@ -164,6 +167,7 @@ export function SalesPage() {
             trendLabel={trendLabel}
             budget={kpis?.margin_percent_budget != null ? `${kpis.margin_percent_budget}%` : undefined}
             onClick={() => openDrilldown('margin_percent')}
+            tooltip={{ title: 'Margin %', formula: '(Invoiced Margin / Invoiced Revenue) × 100' }}
           />
           <KpiCard
             title="Units Sold (Qty)"
@@ -173,6 +177,7 @@ export function SalesPage() {
             trendLabel={trendLabel}
             budget={kpis?.units_sold_budget != null ? formatNumber(kpis.units_sold_budget) : undefined}
             onClick={() => openDrilldown('units_sold')}
+            tooltip={{ title: 'Units Sold', formula: 'SUM(quantity)\nFROM account.move.line\nWHERE move_type = out_invoice\n  AND state = posted', source: 'account.move.line' }}
           />
           <KpiCard
             title="Open Pipeline"
@@ -183,6 +188,7 @@ export function SalesPage() {
             trendLabel={trendLabel}
             budget={kpis?.open_pipeline_budget != null ? formatCurrency(kpis.open_pipeline_budget) : undefined}
             onClick={() => openDrilldown('open_pipeline')}
+            tooltip={{ title: 'Open Pipeline', formula: 'SUM(order_line.price_subtotal)\nFROM sale.order\nWHERE state = sale\n  AND invoice_status ≠ invoiced', source: 'sale.order.line' }}
           />
         </div>
       </PermissionGate>
@@ -199,6 +205,7 @@ export function SalesPage() {
             trendLabel={trendLabel}
             budget={kpis?.open_pipeline_date_budget != null ? formatCurrency(kpis.open_pipeline_date_budget) : undefined}
             onClick={() => openDrilldown('open_pipeline_date')}
+            tooltip={{ title: 'Open Pipeline (Date)', formula: 'Same as Open Pipeline, filtered\nto orders with commitment_date\nin selected date range', source: 'sale.order.line' }}
           />
           <KpiCard
             title="Max Potential Revenue"
@@ -209,6 +216,7 @@ export function SalesPage() {
             trendLabel={trendLabel}
             budget={kpis?.max_potential_revenue_budget != null ? formatCurrency(kpis.max_potential_revenue_budget) : undefined}
             onClick={() => openDrilldown('max_potential_revenue')}
+            tooltip={{ title: 'Max Potential Revenue', formula: 'Invoiced Revenue + Open Pipeline (Date)\nCombined from invoice + SO lines', source: 'account.move.line + sale.order.line' }}
           />
           <KpiCard
             title="Average Sell Price"
@@ -218,6 +226,7 @@ export function SalesPage() {
             trendLabel={trendLabel}
             budget={kpis?.avg_sell_price_budget != null ? formatCurrency(kpis.avg_sell_price_budget) : undefined}
             onClick={() => openDrilldown('avg_sell_price')}
+            tooltip={{ title: 'Avg Sell Price', formula: 'Invoiced Revenue / Units Sold\nDerived from posted invoice lines' }}
           />
         </div>
       </PermissionGate>

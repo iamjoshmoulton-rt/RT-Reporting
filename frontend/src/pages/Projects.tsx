@@ -75,16 +75,20 @@ export function ProjectsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <PermissionGate resource="projects.summary">
-          <KpiCard title="Active Projects" value={formatNumber(summary?.active_projects ?? 0)} icon={FolderOpen} />
+          <KpiCard title="Active Projects" value={formatNumber(summary?.active_projects ?? 0)} icon={FolderOpen}
+            tooltip={{ title: 'Active Projects', formula: 'COUNT(project.project)\nWHERE active = true\n  AND stage is not closed', source: 'project.project' }} />
         </PermissionGate>
         <PermissionGate resource="projects.summary">
-          <KpiCard title="Open Tasks" value={formatNumber(summary?.open_tasks ?? 0)} icon={ListChecks} />
+          <KpiCard title="Open Tasks" value={formatNumber(summary?.open_tasks ?? 0)} icon={ListChecks}
+            tooltip={{ title: 'Open Tasks', formula: 'COUNT(project.task)\nWHERE state = 01_in_progress\n  AND active = true', source: 'project.task' }} />
         </PermissionGate>
         <PermissionGate resource="projects.summary">
-          <KpiCard title="Completed This Period" value={formatNumber(summary?.completed_tasks ?? 0)} icon={CheckCircle} />
+          <KpiCard title="Completed This Period" value={formatNumber(summary?.completed_tasks ?? 0)} icon={CheckCircle}
+            tooltip={{ title: 'Completed This Period', formula: 'COUNT(project.task)\nWHERE state = 1_done\n  AND date_last_stage_update\n  in selected range', source: 'project.task' }} />
         </PermissionGate>
         <PermissionGate resource="projects.summary">
-          <KpiCard title="Overdue Tasks" value={formatNumber(summary?.overdue_tasks ?? 0)} icon={AlertTriangle} />
+          <KpiCard title="Overdue Tasks" value={formatNumber(summary?.overdue_tasks ?? 0)} icon={AlertTriangle}
+            tooltip={{ title: 'Overdue Tasks', formula: 'COUNT(project.task)\nWHERE date_deadline < today\n  AND state != 1_done\n  AND active = true', source: 'project.task' }} />
         </PermissionGate>
       </div>
 

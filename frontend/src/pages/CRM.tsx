@@ -65,16 +65,20 @@ export function CRMPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <PermissionGate resource="crm.summary">
-          <KpiCard title="Open Leads" value={formatNumber(summary?.open_leads ?? 0)} icon={Users} />
+          <KpiCard title="Open Leads" value={formatNumber(summary?.open_leads ?? 0)} icon={Users}
+            tooltip={{ title: 'Open Leads', formula: 'COUNT(crm.lead)\nWHERE active = true\n  AND type = opportunity\n  AND stage is not won/lost', source: 'crm.lead' }} />
         </PermissionGate>
         <PermissionGate resource="crm.summary">
-          <KpiCard title="Pipeline Value" value={formatCurrency(summary?.pipeline_value ?? 0)} icon={DollarSign} />
+          <KpiCard title="Pipeline Value" value={formatCurrency(summary?.pipeline_value ?? 0)} icon={DollarSign}
+            tooltip={{ title: 'Pipeline Value', formula: 'SUM(expected_revenue)\nFROM crm.lead\nWHERE active = true\n  AND stage is not won/lost', source: 'crm.lead' }} />
         </PermissionGate>
         <PermissionGate resource="crm.summary">
-          <KpiCard title="Won This Period" value={formatNumber(summary?.won_count ?? 0)} icon={Trophy} />
+          <KpiCard title="Won This Period" value={formatNumber(summary?.won_count ?? 0)} icon={Trophy}
+            tooltip={{ title: 'Won This Period', formula: 'COUNT(crm.lead)\nWHERE stage_id is won stage\n  AND date_closed in selected range', source: 'crm.lead' }} />
         </PermissionGate>
         <PermissionGate resource="crm.summary">
-          <KpiCard title="Conversion Rate" value={`${summary?.conversion_rate ?? 0}%`} icon={Percent} />
+          <KpiCard title="Conversion Rate" value={`${summary?.conversion_rate ?? 0}%`} icon={Percent}
+            tooltip={{ title: 'Conversion Rate', formula: 'Won leads / Total leads × 100\nWHERE create_date in selected range\nIncludes won + lost leads', source: 'crm.lead' }} />
         </PermissionGate>
       </div>
 

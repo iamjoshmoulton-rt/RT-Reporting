@@ -65,16 +65,20 @@ export function ProcurementPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <PermissionGate resource="procurement.orders_chart">
-          <KpiCard title="Total Spend" value={formatCurrency(summary?.total_spend ?? 0)} icon={DollarSign} />
+          <KpiCard title="Total Spend" value={formatCurrency(summary?.total_spend ?? 0)} icon={DollarSign}
+            tooltip={{ title: 'Total Spend', formula: 'SUM(amount_total)\nFROM purchase.order\nWHERE state in (purchase, done)\n  AND date_order in selected range', source: 'purchase.order' }} />
         </PermissionGate>
         <PermissionGate resource="procurement.orders_chart">
-          <KpiCard title="Purchase Orders" value={formatNumber(summary?.total_orders ?? 0)} icon={Truck} />
+          <KpiCard title="Purchase Orders" value={formatNumber(summary?.total_orders ?? 0)} icon={Truck}
+            tooltip={{ title: 'Purchase Orders', formula: 'COUNT(DISTINCT purchase.order)\nWHERE state in (purchase, done)\n  AND date_order in selected range', source: 'purchase.order' }} />
         </PermissionGate>
         <PermissionGate resource="procurement.orders_chart">
-          <KpiCard title="Avg PO Value" value={formatCurrency(summary?.avg_order_value ?? 0)} icon={TrendingDown} />
+          <KpiCard title="Avg PO Value" value={formatCurrency(summary?.avg_order_value ?? 0)} icon={TrendingDown}
+            tooltip={{ title: 'Avg PO Value', formula: 'Total Spend / Purchase Orders\nDerived from confirmed POs' }} />
         </PermissionGate>
         <PermissionGate resource="procurement.spend_chart">
-          <KpiCard title="Untaxed Total" value={formatCurrency(summary?.total_untaxed ?? 0)} icon={BarChart3} />
+          <KpiCard title="Untaxed Total" value={formatCurrency(summary?.total_untaxed ?? 0)} icon={BarChart3}
+            tooltip={{ title: 'Untaxed Total', formula: 'SUM(amount_untaxed)\nFROM purchase.order\nWHERE state in (purchase, done)\n  AND date_order in selected range', source: 'purchase.order' }} />
         </PermissionGate>
       </div>
 
