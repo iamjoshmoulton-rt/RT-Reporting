@@ -1091,3 +1091,14 @@ export function useSalesMarginOverview(params: DateRangeParams) {
     staleTime: 5 * 60 * 1000,
   })
 }
+
+// --- Trade-In ---
+
+export function useTradeInOverview(params: DateRangeParams) {
+  return useQuery({
+    queryKey: ['trade-in', 'overview', params],
+    queryFn: () => api.get('/trade-in/overview', params),
+    enabled: !!params.date_from && !!params.date_to,
+    staleTime: 5 * 60 * 1000,
+  })
+}

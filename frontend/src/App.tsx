@@ -39,6 +39,7 @@ import EcommerceOrder from '@/pages/EcommerceOrder'
 import PricingHistory from '@/pages/PricingHistory'
 import PricingHistorySO from '@/pages/PricingHistorySO'
 import SalesMargin from '@/pages/SalesMargin'
+import TradeIn from '@/pages/TradeIn'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -91,6 +92,7 @@ function App() {
               <Route path="/pricing-history" element={<PricingHistory />} />
               <Route path="/pricing-history-so" element={<PricingHistorySO />} />
               <Route path="/sales-margin" element={<SalesMargin />} />
+              <Route path="/trade-in" element={<TradeIn />} />
               <Route path="/customers" element={<CustomersPage />} />
               <Route path="/customers/:id" element={<CustomerDetailPage />} />
               <Route path="/alerts" element={<AlertsPage />} />

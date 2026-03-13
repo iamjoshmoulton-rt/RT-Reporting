@@ -33,6 +33,7 @@ from app.routers.ecommerce import router as ecommerce_router
 from app.routers.pricing_history import router as pricing_history_router
 from app.routers.pricing_history_so import router as pricing_history_so_router
 from app.routers.sales_margin import router as sales_margin_router
+from app.routers.trade_in import router as trade_in_router
 from app.scheduler.scheduler import start_scheduler, stop_scheduler
 from app.middleware.timezone import UserTimezoneMiddleware
 from app.services.grading_service import prewarm_cache as prewarm_grading_cache
@@ -128,6 +129,7 @@ app.include_router(ecommerce_router)
 app.include_router(pricing_history_router)
 app.include_router(pricing_history_so_router)
 app.include_router(sales_margin_router)
+app.include_router(trade_in_router)
 
 
 @app.get("/api/health")
