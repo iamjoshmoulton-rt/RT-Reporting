@@ -327,7 +327,7 @@ export function SupportWidget() {
           'bg-[var(--card)] border-l border-[var(--border)]',
           'flex flex-col shadow-2xl',
           'transition-transform duration-300 ease-in-out',
-          open ? 'translate-x-0' : 'translate-x-full',
+          open ? 'translate-x-0' : 'translate-x-full pointer-events-none',
         )}
       >
         {isEditingScreenshot && screenshot ? (

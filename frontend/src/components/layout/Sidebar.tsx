@@ -135,7 +135,7 @@ export function Sidebar({ collapsed, onCollapsedChange, mobileOpen, onMobileOpen
       <aside
         className={cn(
           'fixed left-0 top-0 z-50 flex h-screen w-72 flex-col transition-transform duration-300 lg:hidden',
-          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+          mobileOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
         )}
         style={{ background: 'var(--sidebar-bg)' }}
       >
