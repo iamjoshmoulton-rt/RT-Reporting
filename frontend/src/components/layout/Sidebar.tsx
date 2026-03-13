@@ -13,6 +13,7 @@ import {
   ChevronRight,
   X,
   ArrowLeftRight,
+  Calculator,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -31,6 +32,7 @@ const navItems = [
   { path: '/pricing-history-so', label: 'Pricing History (SO)', icon: History },
   { path: '/sales-margin', label: 'Sales Margin', icon: BarChart3 },
   { path: '/trade-in', label: 'Trade-In', icon: ArrowLeftRight },
+  { path: '/accounting-dash', label: 'Accounting', icon: Calculator },
   { path: '/alerts', label: 'Alerts', icon: Bell },
   { path: '/report-builder', label: 'Report Builder', icon: Wrench },
   { path: '/settings', label: 'Settings', icon: Settings },

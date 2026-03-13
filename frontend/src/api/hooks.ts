@@ -1102,3 +1102,14 @@ export function useTradeInOverview(params: DateRangeParams) {
     staleTime: 5 * 60 * 1000,
   })
 }
+
+// --- Accounting Dashboard ---
+
+export function useAccountingDashOverview(params: DateRangeParams) {
+  return useQuery({
+    queryKey: ['accounting-dash', 'overview', params],
+    queryFn: () => api.get('/accounting-dash/overview', params),
+    enabled: !!params.date_from && !!params.date_to,
+    staleTime: 5 * 60 * 1000,
+  })
+}

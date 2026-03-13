@@ -40,6 +40,7 @@ import PricingHistory from '@/pages/PricingHistory'
 import PricingHistorySO from '@/pages/PricingHistorySO'
 import SalesMargin from '@/pages/SalesMargin'
 import TradeIn from '@/pages/TradeIn'
+import AccountingDash from '@/pages/AccountingDash'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -93,6 +94,7 @@ function App() {
               <Route path="/pricing-history-so" element={<PricingHistorySO />} />
               <Route path="/sales-margin" element={<SalesMargin />} />
               <Route path="/trade-in" element={<TradeIn />} />
+              <Route path="/accounting-dash" element={<AccountingDash />} />
               <Route path="/customers" element={<CustomersPage />} />
               <Route path="/customers/:id" element={<CustomerDetailPage />} />
               <Route path="/alerts" element={<AlertsPage />} />
