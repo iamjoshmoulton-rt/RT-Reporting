@@ -74,13 +74,14 @@ async def _get_kpis(db: AsyncSession, date_from: date, date_to: date, **kw):
 
     base = _confirmed_po() + _base_filters(**kw)
 
-    # Landed = qty_received on POs approved in date range
-    landed_f = base + [PurchaseOrder.date_approve >= date_from, PurchaseOrder.date_approve <= date_to]
+    # Landed = qty_received on POs ordered in date range, value from price_subtotal
+    # Uses date_order (PO confirmation date) + price_subtotal (matches Odoo procurement dashboard)
+    landed_f = base + [PurchaseOrder.date_order >= date_from, PurchaseOrder.date_order <= date_to]
     landed_q = (
         select(
             func.coalesce(func.sum(PurchaseOrderLine.qty_received), 0).label("landed_units"),
             func.coalesce(
-                func.sum(PurchaseOrderLine.qty_received * PurchaseOrderLine.price_unit), 0
+                func.sum(PurchaseOrderLine.price_subtotal), 0
             ).label("landed_value"),
         )
         .join(PurchaseOrder, PurchaseOrderLine.order_id == PurchaseOrder.id)
@@ -98,8 +99,11 @@ async def _get_kpis(db: AsyncSession, date_from: date, date_to: date, **kw):
     landed_value = float(lr.landed_value)
     avg_price = (landed_value / landed_units) if landed_units else 0
 
-    # Total incoming = remaining qty on open POs
-    incoming_f = base.copy()
+    # Total incoming = remaining qty on open POs ordered in date range
+    incoming_f = base + [
+        PurchaseOrder.date_order >= date_from,
+        PurchaseOrder.date_order <= date_to,
+    ]
     incoming_q = (
         select(
             func.coalesce(
@@ -191,8 +195,8 @@ async def _get_kpis(db: AsyncSession, date_from: date, date_to: date, **kw):
 async def _get_landed_by_rep(db: AsyncSession, date_from: date, date_to: date, **kw):
     """Landed items grouped by buyer (PO.user_id)."""
     f = _confirmed_po() + _base_filters(**kw) + [
-        PurchaseOrder.date_approve >= date_from,
-        PurchaseOrder.date_approve <= date_to,
+        PurchaseOrder.date_order >= date_from,
+        PurchaseOrder.date_order <= date_to,
     ]
     q = (
         select(
@@ -201,14 +205,14 @@ async def _get_landed_by_rep(db: AsyncSession, date_from: date, date_to: date, *
             func.count(PurchaseOrderLine.id).label("line_count"),
             func.sum(PurchaseOrderLine.qty_received).label("received_qty"),
             func.sum(PurchaseOrderLine.product_qty).label("total_qty"),
-            func.sum(PurchaseOrderLine.qty_received * PurchaseOrderLine.price_unit).label("total_value"),
+            func.sum(PurchaseOrderLine.price_subtotal).label("total_value"),
         )
         .join(PurchaseOrder, PurchaseOrderLine.order_id == PurchaseOrder.id)
         .join(ResUsers, PurchaseOrder.user_id == ResUsers.id)
         .join(ResPartner, ResUsers.partner_id == ResPartner.id)
         .where(*f)
         .group_by(PurchaseOrder.user_id, ResPartner.name)
-        .order_by(func.sum(PurchaseOrderLine.qty_received * PurchaseOrderLine.price_unit).desc())
+        .order_by(func.sum(PurchaseOrderLine.price_subtotal).desc())
     )
     rows = (await db.execute(q)).all()
     return [
@@ -223,8 +227,10 @@ async def _get_landed_by_rep(db: AsyncSession, date_from: date, date_to: date, *
 
 
 async def _get_incoming_by_category(db: AsyncSession, date_from: date, date_to: date, **kw):
-    """Incoming items by product category."""
+    """Incoming items by product category (filtered by date_planned in range)."""
     f = _confirmed_po() + _base_filters(**kw) + [
+        PurchaseOrderLine.date_planned >= date_from,
+        PurchaseOrderLine.date_planned <= date_to,
         (PurchaseOrderLine.product_qty - PurchaseOrderLine.qty_received) > 0,
     ]
     q = (
@@ -261,8 +267,8 @@ async def _get_incoming_by_category(db: AsyncSession, date_from: date, date_to: 
 async def _get_landed_by_product(db: AsyncSession, date_from: date, date_to: date, **kw):
     """Landed items by product."""
     f = _confirmed_po() + _base_filters(**kw) + [
-        PurchaseOrder.date_approve >= date_from,
-        PurchaseOrder.date_approve <= date_to,
+        PurchaseOrder.date_order >= date_from,
+        PurchaseOrder.date_order <= date_to,
     ]
     pname = _product_name()
     q = (
@@ -272,14 +278,14 @@ async def _get_landed_by_product(db: AsyncSession, date_from: date, date_to: dat
             ProductProduct.default_code.label("sku"),
             func.sum(PurchaseOrderLine.product_qty).label("ordered_qty"),
             func.sum(PurchaseOrderLine.qty_received).label("received_qty"),
-            func.sum(PurchaseOrderLine.qty_received * PurchaseOrderLine.price_unit).label("total_value"),
+            func.sum(PurchaseOrderLine.price_subtotal).label("total_value"),
         )
         .join(PurchaseOrder, PurchaseOrderLine.order_id == PurchaseOrder.id)
         .join(ProductProduct, PurchaseOrderLine.product_id == ProductProduct.id)
         .join(ProductTemplate, ProductProduct.product_tmpl_id == ProductTemplate.id)
         .where(*f)
         .group_by(ProductProduct.id, pname, ProductProduct.default_code)
-        .order_by(func.sum(PurchaseOrderLine.qty_received * PurchaseOrderLine.price_unit).desc())
+        .order_by(func.sum(PurchaseOrderLine.price_subtotal).desc())
         .limit(30)
     )
     rows = (await db.execute(q)).all()
@@ -297,8 +303,8 @@ async def _get_landed_by_product(db: AsyncSession, date_from: date, date_to: dat
 async def _get_landed_by_category(db: AsyncSession, date_from: date, date_to: date, **kw):
     """Landed items by category."""
     f = _confirmed_po() + _base_filters(**kw) + [
-        PurchaseOrder.date_approve >= date_from,
-        PurchaseOrder.date_approve <= date_to,
+        PurchaseOrder.date_order >= date_from,
+        PurchaseOrder.date_order <= date_to,
     ]
     q = (
         select(
@@ -307,7 +313,7 @@ async def _get_landed_by_category(db: AsyncSession, date_from: date, date_to: da
             func.count(PurchaseOrderLine.id).label("line_count"),
             func.sum(PurchaseOrderLine.qty_received).label("received_qty"),
             func.sum(PurchaseOrderLine.product_qty).label("total_qty"),
-            func.sum(PurchaseOrderLine.qty_received * PurchaseOrderLine.price_unit).label("total_value"),
+            func.sum(PurchaseOrderLine.price_subtotal).label("total_value"),
         )
         .join(PurchaseOrder, PurchaseOrderLine.order_id == PurchaseOrder.id)
         .join(ProductProduct, PurchaseOrderLine.product_id == ProductProduct.id)
@@ -315,7 +321,7 @@ async def _get_landed_by_category(db: AsyncSession, date_from: date, date_to: da
         .join(ProductCategory, ProductTemplate.categ_id == ProductCategory.id)
         .where(*f)
         .group_by(ProductCategory.id, ProductCategory.complete_name)
-        .order_by(func.sum(PurchaseOrderLine.qty_received * PurchaseOrderLine.price_unit).desc())
+        .order_by(func.sum(PurchaseOrderLine.price_subtotal).desc())
     )
     rows = (await db.execute(q)).all()
     return [
@@ -330,8 +336,10 @@ async def _get_landed_by_category(db: AsyncSession, date_from: date, date_to: da
 
 
 async def _get_incoming_by_rep(db: AsyncSession, date_from: date, date_to: date, **kw):
-    """Incoming items by buyer."""
+    """Incoming items by buyer (filtered by date_planned in range)."""
     f = _confirmed_po() + _base_filters(**kw) + [
+        PurchaseOrderLine.date_planned >= date_from,
+        PurchaseOrderLine.date_planned <= date_to,
         (PurchaseOrderLine.product_qty - PurchaseOrderLine.qty_received) > 0,
     ]
     q = (
@@ -365,8 +373,10 @@ async def _get_incoming_by_rep(db: AsyncSession, date_from: date, date_to: date,
 
 
 async def _get_incoming_by_vendor(db: AsyncSession, date_from: date, date_to: date, **kw):
-    """Incoming items by vendor."""
+    """Incoming items by vendor (filtered by date_planned in range)."""
     f = _confirmed_po() + _base_filters(**kw) + [
+        PurchaseOrderLine.date_planned >= date_from,
+        PurchaseOrderLine.date_planned <= date_to,
         (PurchaseOrderLine.product_qty - PurchaseOrderLine.qty_received) > 0,
     ]
     q = (

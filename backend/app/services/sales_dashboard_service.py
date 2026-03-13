@@ -92,23 +92,55 @@ async def _get_kpis(db: AsyncSession, date_from: date, date_to: date, **kw):
     """8 KPIs matching the Odoo sales dashboard."""
     cf = _confirmed_filters(date_from, date_to, **kw)
 
-    # Invoiced revenue + margin
+    # Invoiced revenue from account_move (posted out_invoices minus out_refunds)
+    # This matches Odoo's spreadsheet dashboard which uses net invoice amounts
     inv_f = cf + [SaleOrder.invoice_status == "invoiced"]
-    inv_q = select(
-        func.coalesce(func.sum(SaleOrder.amount_total), 0).label("invoiced_revenue"),
-        func.coalesce(func.sum(SaleOrder.margin), 0).label("invoiced_margin"),
-    ).where(*inv_f)
-    inv_row = (await db.execute(inv_q)).one()
-    invoiced_revenue = float(inv_row.invoiced_revenue)
-    invoiced_margin = float(inv_row.invoiced_margin)
+    am_filters = [
+        AccountMove.state == "posted",
+        AccountMove.move_type.in_(["out_invoice", "out_refund"]),
+    ]
+    if date_from:
+        am_filters.append(AccountMove.invoice_date >= date_from)
+    if date_to:
+        am_filters.append(AccountMove.invoice_date <= date_to)
+    if kw.get("salesperson_id"):
+        am_filters.append(AccountMove.invoice_user_id == kw["salesperson_id"])
+    revenue_q = select(
+        func.coalesce(func.sum(
+            case(
+                (AccountMove.move_type == "out_invoice", AccountMove.amount_untaxed),
+                (AccountMove.move_type == "out_refund", -AccountMove.amount_untaxed),
+                else_=0,
+            )
+        ), 0).label("invoiced_revenue"),
+    ).where(*am_filters)
+    invoiced_revenue = float((await db.execute(revenue_q)).scalar_one())
+
+    # Line-level margin for invoiced orders, device categories only
+    # Excludes non-device categories to approximate Odoo's "Device margin reported on P&L"
+    _EXCLUDED_MARGIN_CATEGORIES = ["Accessories", "Accessories (Products)", "Deliveries", "Headphones"]
+    margin_q = (
+        select(func.coalesce(func.sum(SaleOrderLine.margin), 0))
+        .join(SaleOrder, SaleOrderLine.order_id == SaleOrder.id)
+        .join(ProductProduct, SaleOrderLine.product_id == ProductProduct.id)
+        .join(ProductTemplate, ProductProduct.product_tmpl_id == ProductTemplate.id)
+        .join(ProductCategory, ProductTemplate.categ_id == ProductCategory.id)
+        .where(*inv_f, ~ProductCategory.complete_name.in_(_EXCLUDED_MARGIN_CATEGORIES))
+    )
+    invoiced_margin = float((await db.execute(margin_q)).scalar_one())
     margin_pct = (invoiced_margin / invoiced_revenue * 100) if invoiced_revenue else 0
 
-    # Units sold
-    lf = cf.copy()
+    # Units sold (invoiced qty on invoiced orders, device categories only — matches Odoo)
+    # Odoo's "Units Sold Tile" excludes non-device categories by exact complete_name
+    _EXCLUDED_UNIT_CATEGORIES = ["Accessories", "Accessories (Products)", "Deliveries", "Headphones"]
+    lf = cf.copy() + [SaleOrder.invoice_status == "invoiced"]
     qty_q = (
-        select(func.coalesce(func.sum(SaleOrderLine.product_uom_qty), 0))
+        select(func.coalesce(func.sum(SaleOrderLine.qty_invoiced), 0))
         .join(SaleOrder, SaleOrderLine.order_id == SaleOrder.id)
-        .where(*lf)
+        .join(ProductProduct, SaleOrderLine.product_id == ProductProduct.id)
+        .join(ProductTemplate, ProductProduct.product_tmpl_id == ProductTemplate.id)
+        .join(ProductCategory, ProductTemplate.categ_id == ProductCategory.id)
+        .where(*lf, ~ProductCategory.complete_name.in_(_EXCLUDED_UNIT_CATEGORIES))
     )
     units_sold = float((await db.execute(qty_q)).scalar_one())
     avg_sell = (invoiced_revenue / units_sold) if units_sold else 0
