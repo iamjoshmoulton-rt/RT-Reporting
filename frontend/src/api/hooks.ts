@@ -1037,3 +1037,27 @@ export function useEcommerceFilterOptions() {
     staleTime: 10 * 60 * 1000,
   })
 }
+
+// --- Pricing History ---
+
+type PricingHistoryParams = DateRangeParams & {
+  channel_ids?: number[]
+  category_ids?: number[]
+}
+
+export function usePricingHistoryOverview(params: PricingHistoryParams) {
+  return useQuery({
+    queryKey: ['pricing-history', 'overview', params],
+    queryFn: () => api.get('/pricing-history/overview', params),
+    enabled: !!params.date_from && !!params.date_to,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function usePricingHistoryFilterOptions() {
+  return useQuery({
+    queryKey: ['pricing-history', 'filter-options'],
+    queryFn: () => api.get('/pricing-history/filter-options'),
+    staleTime: 10 * 60 * 1000,
+  })
+}

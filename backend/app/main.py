@@ -30,6 +30,7 @@ from app.routers.grading import router as grading_router
 from app.routers.sales_dashboard import router as sales_dashboard_router
 from app.routers.procurement_dashboard import router as procurement_dashboard_router
 from app.routers.ecommerce import router as ecommerce_router
+from app.routers.pricing_history import router as pricing_history_router
 from app.scheduler.scheduler import start_scheduler, stop_scheduler
 from app.middleware.timezone import UserTimezoneMiddleware
 from app.services.grading_service import prewarm_cache as prewarm_grading_cache
@@ -122,6 +123,7 @@ app.include_router(grading_router)
 app.include_router(sales_dashboard_router)
 app.include_router(procurement_dashboard_router)
 app.include_router(ecommerce_router)
+app.include_router(pricing_history_router)
 
 
 @app.get("/api/health")
