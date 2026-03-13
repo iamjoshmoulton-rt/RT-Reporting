@@ -14,6 +14,15 @@ services:
       retries: 5
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
   backend:
     build:
       context: ./backend
@@ -22,8 +31,11 @@ services:
       - ./backend/.env
     environment:
       APP_DATABASE_URL: postgresql+asyncpg://rt_user:${DB_PASSWORD:-rt_password}@app-db:5432/rt_reporting
+      REDIS_URL: redis://redis:6379/0
     depends_on:
       app-db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 

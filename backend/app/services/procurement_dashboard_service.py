@@ -6,7 +6,6 @@ joins to res_partner (vendor), res_users → res_partner (buyer), product → te
 
 import asyncio
 import logging
-import time
 from datetime import date
 
 from sqlalchemy import select, func, case, and_
@@ -19,12 +18,10 @@ from app.odoo_models.partners import (
 )
 from app.services.tz import local_date
 from app.database import OdooSessionLocal
+from app.cache import cache_get, cache_set
 
 logger = logging.getLogger(__name__)
 
-# ── Response cache ────────────────────────────────────────────────────
-
-_response_cache: dict[str, tuple[float, dict]] = {}
 CACHE_TTL = 900
 
 
@@ -33,15 +30,12 @@ def _cache_key(prefix: str, date_from: date, date_to: date, **kwargs) -> str:
     return f"proc_dash:{prefix}:{date_from}:{date_to}:{extra}"
 
 
-def _get_cached(key: str):
-    entry = _response_cache.get(key)
-    if entry and (time.time() - entry[0]) < CACHE_TTL:
-        return entry[1]
-    return None
+async def _get_cached(key: str):
+    return await cache_get(key)
 
 
-def _set_cached(key: str, value):
-    _response_cache[key] = (time.time(), value)
+async def _set_cached(key: str, value):
+    await cache_set(key, value, CACHE_TTL)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────
@@ -459,7 +453,7 @@ async def get_procurement_dashboard_overview(
     """Combined overview — runs all queries in parallel, caches result."""
     kw = dict(vendor_id=vendor_id, category_id=category_id, buyer_id=buyer_id)
     ck = _cache_key("overview", date_from, date_to, **kw)
-    cached = _get_cached(ck)
+    cached = await _get_cached(ck)
     if cached:
         return cached
 
@@ -487,15 +481,15 @@ async def get_procurement_dashboard_overview(
         "incoming_by_vendor": results[6],
     }
 
-    _set_cached(ck, data)
+    await _set_cached(ck, data)
     return data
 
 
 async def get_filter_options(db: AsyncSession):
     ck = "proc_dash:filters"
-    cached = _get_cached(ck)
+    cached = await _get_cached(ck)
     if cached:
         return cached
     data = await _get_filter_options(db)
-    _set_cached(ck, data)
+    await _set_cached(ck, data)
     return data

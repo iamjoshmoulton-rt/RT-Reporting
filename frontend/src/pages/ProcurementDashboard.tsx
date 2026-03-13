@@ -18,7 +18,7 @@ import { formatCurrency, formatNumber } from '@/lib/utils'
 import type { ColumnDef } from '@tanstack/react-table'
 
 export default function ProcurementDashboard() {
-  const { dateFrom, dateTo, setDateFrom, setDateTo } = useDateFilterState('procurement-dashboard')
+  const { dateFrom, dateTo, setDateFrom, setDateTo, setDateRange } = useDateFilterState('procurement-dashboard')
 
   // Filters
   const [vendorId, setVendorId] = useState<number | undefined>()
@@ -100,6 +100,7 @@ export default function ProcurementDashboard() {
           dateTo={dateTo}
           onDateFromChange={setDateFrom}
           onDateToChange={setDateTo}
+          onDateRangeChange={setDateRange}
         />
 
         {/* Filter Bar */}

@@ -32,6 +32,7 @@ from app.routers.procurement_dashboard import router as procurement_dashboard_ro
 from app.scheduler.scheduler import start_scheduler, stop_scheduler
 from app.middleware.timezone import UserTimezoneMiddleware
 from app.services.grading_service import prewarm_cache as prewarm_grading_cache
+from app.cache import close_redis
 
 
 async def _seed_app_settings(db):
@@ -70,6 +71,7 @@ async def lifespan(app: FastAPI):
     yield
 
     stop_scheduler()
+    await close_redis()
 
 
 app = FastAPI(

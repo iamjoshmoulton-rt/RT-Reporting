@@ -67,25 +67,23 @@ async def _ensure_location_ids(db: AsyncSession):
     _location_cache["dst"] = list(dst_rows)
 
 
-# ── Response cache (TTL-based) ────────────────────────────────────────
+# ── Response cache (Redis-backed, fallback to in-memory) ──────────────
 
-_response_cache: dict[str, tuple[float, dict]] = {}
+from app.cache import cache_get, cache_set
+
 CACHE_TTL = 900  # 15 minutes — read-replica data is inherently stale
 
 
 def _cache_key(prefix: str, view: str, date_from: date, date_to: date) -> str:
-    return f"{prefix}:{view}:{date_from}:{date_to}"
+    return f"grading:{prefix}:{view}:{date_from}:{date_to}"
 
 
-def _get_cached(key: str):
-    entry = _response_cache.get(key)
-    if entry and (time.time() - entry[0]) < CACHE_TTL:
-        return entry[1]
-    return None
+async def _get_cached(key: str):
+    return await cache_get(key)
 
 
-def _set_cached(key: str, value):
-    _response_cache[key] = (time.time(), value)
+async def _set_cached(key: str, value):
+    await cache_set(key, value, CACHE_TTL)
 
 
 # ── UTC date range helper ─────────────────────────────────────────────
@@ -420,7 +418,7 @@ async def get_grading_overview(
     await _ensure_location_ids(db)
 
     cache_key = _cache_key("overview", view, date_from, date_to)
-    cached = _get_cached(cache_key)
+    cached = await _get_cached(cache_key)
     if cached:
         return cached
 
@@ -575,7 +573,7 @@ async def get_grading_overview(
     elapsed = time.time() - t0
     logger.info(f"[GRADING] overview {view} {date_from}→{date_to}: {len(rows)} rows, {elapsed:.1f}s")
 
-    _set_cached(cache_key, result)
+    await _set_cached(cache_key, result)
     return result
 
 
@@ -594,8 +592,8 @@ async def get_grading_items(
     """Paginated stock move line items — cached + count/fetch in parallel."""
     await _ensure_location_ids(db)
 
-    items_cache_key = f"items:{view}:{date_from}:{date_to}:{search}:{grade}:{category}:{cost_min}:{cost_max}:{offset}:{limit}"
-    cached = _get_cached(items_cache_key)
+    items_cache_key = f"grading:items:{view}:{date_from}:{date_to}:{search}:{grade}:{category}:{cost_min}:{cost_max}:{offset}:{limit}"
+    cached = await _get_cached(items_cache_key)
     if cached:
         return cached
 
@@ -612,7 +610,7 @@ async def get_grading_items(
     cached_total = None
     if not has_extra_filters and date_from and date_to:
         overview_key = _cache_key("overview", view, date_from, date_to)
-        overview_cached = _get_cached(overview_key)
+        overview_cached = await _get_cached(overview_key)
         if overview_cached:
             cached_total = overview_cached["summary"]["total_items"]
 
@@ -651,7 +649,7 @@ async def get_grading_items(
             for r in rows
         ],
     }
-    _set_cached(items_cache_key, result)
+    await _set_cached(items_cache_key, result)
     return result
 
 
@@ -683,7 +681,7 @@ async def prewarm_cache():
     for view in views:
         for d_from, d_to in ranges:
             cache_key = _cache_key("overview", view, d_from, d_to)
-            if _get_cached(cache_key):
+            if await _get_cached(cache_key):
                 continue
             try:
                 t1 = time.time()

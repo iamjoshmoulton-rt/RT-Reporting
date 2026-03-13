@@ -1,5 +1,4 @@
 import asyncio
-import time
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Query
@@ -12,11 +11,10 @@ from app.services import (
     sales_service, procurement_service, accounting_service, inventory_service,
     helpdesk_service, crm_service, manufacturing_service, projects_service,
 )
+from app.cache import cache_get, cache_set
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
-# ── Response cache (2-min TTL) ────────────────────────────────────────
-_dashboard_cache: dict[str, tuple[float, dict]] = {}
 CACHE_TTL = 120  # seconds
 
 
@@ -43,10 +41,10 @@ async def dashboard_summary(
     dt = date_to or today
 
     # Check cache
-    cache_key = f"summary:{df}:{dt}"
-    cached = _dashboard_cache.get(cache_key)
-    if cached and (time.time() - cached[0]) < CACHE_TTL:
-        return cached[1]
+    cache_key = f"dashboard:summary:{df}:{dt}"
+    cached = await cache_get(cache_key)
+    if cached:
+        return cached
 
     # Calculate previous period
     delta = dt - df
@@ -102,7 +100,7 @@ async def dashboard_summary(
         },
     }
 
-    _dashboard_cache[cache_key] = (time.time(), result)
+    await cache_set(cache_key, result, CACHE_TTL)
     return result
 
 

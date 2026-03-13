@@ -8,7 +8,6 @@ Optimizations:
 """
 
 import asyncio
-import time
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -19,21 +18,9 @@ from app.odoo_models.inventory import StockQuant, StockMove, StockLocation, Stoc
 from app.odoo_models.partners import ProductTemplate, ProductProduct
 from app.services.tz import get_effective_timezone
 from app.database import OdooSessionLocal
+from app.cache import cache_get, cache_set
 
-# ── Response cache ────────────────────────────────────────────────────
-_inv_cache: dict[str, tuple[float, any]] = {}
 CACHE_TTL = 120  # seconds
-
-
-def _get_cached(key: str):
-    entry = _inv_cache.get(key)
-    if entry and (time.time() - entry[0]) < CACHE_TTL:
-        return entry[1]
-    return None
-
-
-def _set_cached(key: str, value):
-    _inv_cache[key] = (time.time(), value)
 
 
 # ── UTC date range helper (index-friendly) ────────────────────────────
@@ -57,7 +44,7 @@ def _product_name():
 
 
 async def get_inventory_summary(db: AsyncSession):
-    cached = _get_cached("inv_summary")
+    cached = await cache_get("inv:summary")
     if cached:
         return cached
 
@@ -76,7 +63,7 @@ async def get_inventory_summary(db: AsyncSession):
         "total_reserved": float(row.total_reserved),
         "available_quantity": float(row.total_qty) - float(row.total_reserved),
     }
-    _set_cached("inv_summary", data)
+    await cache_set("inv:summary", data, CACHE_TTL)
     return data
 
 
@@ -87,8 +74,8 @@ async def get_stock_levels(
     offset: int = 0,
     search: str | None = None,
 ):
-    cache_key = f"stock_levels:{location_id}:{limit}:{offset}:{search}"
-    cached = _get_cached(cache_key)
+    cache_key = f"inv:stock_levels:{location_id}:{limit}:{offset}:{search}"
+    cached = await cache_get(cache_key)
     if cached:
         return cached
 
@@ -151,7 +138,7 @@ async def get_stock_levels(
         for row in rows
     ]
     data = {"total": total, "items": items}
-    _set_cached(cache_key, data)
+    await cache_set(cache_key, data, CACHE_TTL)
     return data
 
 
@@ -372,7 +359,7 @@ async def get_product_detail(
 
 
 async def get_stock_by_warehouse(db: AsyncSession):
-    cached = _get_cached("stock_by_warehouse")
+    cached = await cache_get("inv:stock_by_warehouse")
     if cached:
         return cached
 
@@ -397,5 +384,5 @@ async def get_stock_by_warehouse(db: AsyncSession):
         }
         for row in result.all()
     ]
-    _set_cached("stock_by_warehouse", data)
+    await cache_set("inv:stock_by_warehouse", data, CACHE_TTL)
     return data

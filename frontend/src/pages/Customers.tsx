@@ -36,7 +36,7 @@ const customerColumns: ColumnDef<CustomerRow, unknown>[] = [
 ]
 
 export function CustomersPage() {
-  const { dateFrom, dateTo, groupBy, compareTo, setDateFrom, setDateTo, setGroupBy, setCompareTo } = useDateFilterState('customers')
+  const { dateFrom, dateTo, groupBy, compareTo, setDateFrom, setDateTo, setGroupBy, setCompareTo, setDateRange } = useDateFilterState('customers')
   const [page, setPage] = useState(0)
   const [search, setSearch] = useState('')
   const pageSize = 20
@@ -52,7 +52,7 @@ export function CustomersPage() {
       <div className="space-y-3">
         <DateRangeFilter
           dateFrom={dateFrom} dateTo={dateTo}
-          onDateFromChange={setDateFrom} onDateToChange={setDateTo}
+          onDateFromChange={setDateFrom} onDateToChange={setDateTo} onDateRangeChange={setDateRange}
           groupBy={groupBy} onGroupByChange={setGroupBy}
           compareTo={compareTo} onCompareToChange={setCompareTo}
         />

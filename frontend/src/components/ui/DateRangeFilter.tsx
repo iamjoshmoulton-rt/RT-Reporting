@@ -5,6 +5,8 @@ interface DateRangeFilterProps {
   dateTo: string
   onDateFromChange: (v: string) => void
   onDateToChange: (v: string) => void
+  /** Atomic setter for both dates — avoids race conditions with presets. */
+  onDateRangeChange?: (from: string, to: string) => void
   groupBy?: string
   onGroupByChange?: (v: string) => void
   compareTo?: string
@@ -41,7 +43,7 @@ const activeInput =
   'border-primary bg-primary/10 text-primary focus:border-primary'
 
 export function DateRangeFilter({
-  dateFrom, dateTo, onDateFromChange, onDateToChange,
+  dateFrom, dateTo, onDateFromChange, onDateToChange, onDateRangeChange,
   groupBy, onGroupByChange, compareTo, onCompareToChange, className,
 }: DateRangeFilterProps) {
   const hasComparison = !!compareTo
@@ -56,7 +58,7 @@ export function DateRangeFilter({
           return (
             <button
               key={p.label}
-              onClick={() => { const r = p.getRange(); onDateFromChange(r.from); onDateToChange(r.to) }}
+              onClick={() => { const r = p.getRange(); if (onDateRangeChange) { onDateRangeChange(r.from, r.to) } else { onDateFromChange(r.from); onDateToChange(r.to) } }}
               className={cn(
                 'rounded-lg border px-3 py-1.5 text-xs transition-colors',
                 active

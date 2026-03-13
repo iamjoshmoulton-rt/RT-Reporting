@@ -124,6 +124,21 @@ export function useDateFilterState(moduleName: string) {
   const setGroupBy = useCallback((v: string) => updateParam('group_by', v), [updateParam])
   const setCompareTo = useCallback((v: string) => updateParam('compare_to', v), [updateParam])
 
+  /** Set both dates in a single URL update — avoids race condition with two separate setSearchParams calls. */
+  const setDateRange = useCallback(
+    (from: string, to: string) => {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev)
+        if (from) next.set('date_from', from)
+        else next.delete('date_from')
+        if (to) next.set('date_to', to)
+        else next.delete('date_to')
+        return next
+      }, { replace: true })
+    },
+    [setSearchParams]
+  )
+
   return {
     dateFrom,
     dateTo,
@@ -131,6 +146,7 @@ export function useDateFilterState(moduleName: string) {
     compareTo,
     setDateFrom,
     setDateTo,
+    setDateRange,
     setGroupBy,
     setCompareTo,
   }

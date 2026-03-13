@@ -83,7 +83,7 @@ const drilldownLineColumns: ColumnDef<DrilldownLineRow, unknown>[] = [
 ]
 
 export function SalesPage() {
-  const { dateFrom, dateTo, groupBy, compareTo, setDateFrom, setDateTo, setGroupBy, setCompareTo } = useDateFilterState('sales')
+  const { dateFrom, dateTo, groupBy, compareTo, setDateFrom, setDateTo, setGroupBy, setCompareTo, setDateRange } = useDateFilterState('sales')
   const [page, setPage] = useState(0)
   const pageSize = 20
 
@@ -124,7 +124,7 @@ export function SalesPage() {
       <div className="space-y-3">
         <DateRangeFilter
           dateFrom={dateFrom} dateTo={dateTo}
-          onDateFromChange={setDateFrom} onDateToChange={setDateTo}
+          onDateFromChange={setDateFrom} onDateToChange={setDateTo} onDateRangeChange={setDateRange}
           groupBy={groupBy} onGroupByChange={setGroupBy}
           compareTo={compareTo} onCompareToChange={setCompareTo}
         />

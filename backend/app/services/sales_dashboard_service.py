@@ -7,7 +7,6 @@ runs all queries in parallel via asyncio.gather for fast page loads.
 
 import asyncio
 import logging
-import time
 from datetime import date
 
 from sqlalchemy import select, func, case, extract, and_
@@ -21,12 +20,10 @@ from app.odoo_models.partners import (
 )
 from app.services.tz import local_date
 from app.database import OdooSessionLocal
+from app.cache import cache_get, cache_set
 
 logger = logging.getLogger(__name__)
 
-# ── Response cache (TTL-based) ────────────────────────────────────────
-
-_response_cache: dict[str, tuple[float, dict]] = {}
 CACHE_TTL = 900  # 15 minutes
 
 
@@ -35,15 +32,12 @@ def _cache_key(prefix: str, date_from: date, date_to: date, **kwargs) -> str:
     return f"sales_dash:{prefix}:{date_from}:{date_to}:{extra}"
 
 
-def _get_cached(key: str):
-    entry = _response_cache.get(key)
-    if entry and (time.time() - entry[0]) < CACHE_TTL:
-        return entry[1]
-    return None
+async def _get_cached(key: str):
+    return await cache_get(key)
 
 
-def _set_cached(key: str, value):
-    _response_cache[key] = (time.time(), value)
+async def _set_cached(key: str, value):
+    await cache_set(key, value, CACHE_TTL)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────
@@ -646,7 +640,7 @@ async def get_sales_dashboard_overview(
         country_id=country_id,
     )
     ck = _cache_key("overview", date_from, date_to, **kw)
-    cached = _get_cached(ck)
+    cached = await _get_cached(ck)
     if cached:
         return cached
 
@@ -687,16 +681,16 @@ async def get_sales_dashboard_overview(
         "margin_by_channel": results[12],
     }
 
-    _set_cached(ck, data)
+    await _set_cached(ck, data)
     return data
 
 
 async def get_filter_options(db: AsyncSession):
     """Cached filter dropdown options."""
     ck = "sales_dash:filters"
-    cached = _get_cached(ck)
+    cached = await _get_cached(ck)
     if cached:
         return cached
     data = await _get_filter_options(db)
-    _set_cached(ck, data)
+    await _set_cached(ck, data)
     return data

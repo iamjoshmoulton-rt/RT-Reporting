@@ -34,7 +34,7 @@ const moveColumns: ColumnDef<MoveRow, unknown>[] = [
 ]
 
 export function ProcessedStockedPage() {
-  const { dateFrom, dateTo, groupBy, compareTo, setDateFrom, setDateTo, setGroupBy, setCompareTo } = useDateFilterState('inventory_processed')
+  const { dateFrom, dateTo, groupBy, compareTo, setDateFrom, setDateTo, setGroupBy, setCompareTo, setDateRange } = useDateFilterState('inventory_processed')
   const [page, setPage] = useState(0)
   const pageSize = 25
 
@@ -50,7 +50,7 @@ export function ProcessedStockedPage() {
       <div className="space-y-3">
         <DateRangeFilter
           dateFrom={dateFrom} dateTo={dateTo}
-          onDateFromChange={setDateFrom} onDateToChange={setDateTo}
+          onDateFromChange={setDateFrom} onDateToChange={setDateTo} onDateRangeChange={setDateRange}
         />
         <SavedFilterBar
           pageName="inventory_processed"

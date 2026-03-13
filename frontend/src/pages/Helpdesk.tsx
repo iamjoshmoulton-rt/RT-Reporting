@@ -37,7 +37,7 @@ const ticketColumns: ColumnDef<TicketRow, unknown>[] = [
 ]
 
 export function HelpdeskPage() {
-  const { dateFrom, dateTo, groupBy, compareTo, setDateFrom, setDateTo, setGroupBy, setCompareTo } = useDateFilterState('helpdesk')
+  const { dateFrom, dateTo, groupBy, compareTo, setDateFrom, setDateTo, setGroupBy, setCompareTo, setDateRange } = useDateFilterState('helpdesk')
   const [page, setPage] = useState(0)
   const [search, setSearch] = useState('')
   const pageSize = 20
@@ -53,7 +53,7 @@ export function HelpdeskPage() {
       <div className="space-y-3">
         <DateRangeFilter
           dateFrom={dateFrom} dateTo={dateTo}
-          onDateFromChange={setDateFrom} onDateToChange={setDateTo}
+          onDateFromChange={setDateFrom} onDateToChange={setDateTo} onDateRangeChange={setDateRange}
           groupBy={groupBy} onGroupByChange={setGroupBy}
           compareTo={compareTo} onCompareToChange={setCompareTo}
         />

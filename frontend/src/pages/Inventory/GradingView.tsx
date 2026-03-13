@@ -53,7 +53,7 @@ function GradeBadge({ grade }: { grade: string }) {
 }
 
 export function GradingView({ view, title, subtitle }: GradingViewProps) {
-  const { dateFrom, dateTo, setDateFrom, setDateTo } = useDateFilterState(`grading-${view}`)
+  const { dateFrom, dateTo, setDateFrom, setDateTo, setDateRange } = useDateFilterState(`grading-${view}`)
   const params = { date_from: dateFrom, date_to: dateTo }
 
   // Filters
@@ -128,6 +128,7 @@ export function GradingView({ view, title, subtitle }: GradingViewProps) {
           dateTo={dateTo}
           onDateFromChange={setDateFrom}
           onDateToChange={setDateTo}
+          onDateRangeChange={setDateRange}
         />
 
         {/* Filter Bar */}

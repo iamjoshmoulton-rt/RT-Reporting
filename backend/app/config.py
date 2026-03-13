@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     # JSON object mapping Odoo budget post names to KPI keys, e.g. {"Revenue":"invoiced_revenue","Margin":"invoiced_margin"}
     budget_kpi_mapping: str = "{}"
 
+    redis_url: str = "redis://redis:6379/0"
+
     frontend_url: str = "http://localhost:5173"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}

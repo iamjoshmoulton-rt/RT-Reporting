@@ -20,7 +20,7 @@ import { useTheme } from '@/hooks/useTheme'
 import type { ColumnDef } from '@tanstack/react-table'
 
 export default function SalesDashboard() {
-  const { dateFrom, dateTo, setDateFrom, setDateTo } = useDateFilterState('sales-dashboard')
+  const { dateFrom, dateTo, setDateFrom, setDateTo, setDateRange } = useDateFilterState('sales-dashboard')
   const { theme } = useTheme()
   const isDark = theme === 'dark'
 
@@ -196,6 +196,7 @@ export default function SalesDashboard() {
           dateTo={dateTo}
           onDateFromChange={setDateFrom}
           onDateToChange={setDateTo}
+          onDateRangeChange={setDateRange}
         />
 
         {/* Filter Bar */}
