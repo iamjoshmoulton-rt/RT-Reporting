@@ -3,7 +3,7 @@
 Performance optimizations:
 1. Location ID cache — pre-resolve stock_location IDs, avoid JOINs
 2. UTC date range — filter on raw column (index-friendly) instead of function wrapper
-3. Combined overview — 4 queries in parallel via asyncio.gather
+3. Single-query overview — ONE SQL fetch + Python aggregation (replaces 4 parallel queries)
 4. Response cache — 15-min TTL for overview results (data is from read replica anyway)
 5. Parallel count+fetch for items endpoint
 6. Background pre-warm — populate cache for common date ranges on startup
@@ -13,6 +13,7 @@ Performance optimizations:
 import asyncio
 import logging
 import time
+from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 from sqlalchemy import select, func, case, literal_column, and_, or_, text
@@ -410,7 +411,12 @@ async def get_grading_overview(
     db: AsyncSession, view: str,
     date_from: date, date_to: date,
 ):
-    """Combined endpoint with 15-min response cache + parallel query execution."""
+    """Combined endpoint — single SQL fetch + Python aggregation.
+
+    Instead of 4 parallel queries each scanning the same table, we fetch all
+    rows once and compute summary/grades/daily_grades/categories in Python.
+    Reduces RDS round-trips from 4 to 1 and avoids re-scanning ~5M rows 4×.
+    """
     await _ensure_location_ids(db)
 
     cache_key = _cache_key("overview", view, date_from, date_to)
@@ -418,23 +424,157 @@ async def get_grading_overview(
     if cached:
         return cached
 
-    async def _run(fn, *args):
-        async with OdooSessionLocal() as session:
-            return await fn(session, *args)
+    t0 = time.time()
 
-    summary, grades, daily_grades, categories = await asyncio.gather(
-        _run(get_grading_summary, view, date_from, date_to),
-        _run(get_grade_breakdown, view, date_from, date_to),
-        _run(get_daily_grade_data, view, date_from, date_to),
-        _run(get_category_totals, view, date_from, date_to),
+    domain = _domain_filters(view)
+
+    # Compute previous period for trend comparison
+    period_days = (date_to - date_from).days + 1
+    prev_to = date_from - timedelta(days=1)
+    prev_from = prev_to - timedelta(days=period_days - 1)
+
+    cur_utc_start, cur_utc_end = _date_to_utc_range(date_from, date_to)
+    prev_utc_start, prev_utc_end = _date_to_utc_range(prev_from, prev_to)
+
+    # ONE query: fetch lightweight columns for combined date range (prev + current)
+    q = (
+        select(
+            StockMoveLine.date,
+            ProductProduct.grade,
+            StockMoveLine.product_category_name,
+            ProductTemplate.list_price,
+            StockMoveLine.product_id,
+        )
+        .select_from(StockMoveLine)
+        .join(ProductProduct, StockMoveLine.product_id == ProductProduct.id)
+        .join(ProductTemplate, ProductProduct.product_tmpl_id == ProductTemplate.id)
+        .where(
+            *domain,
+            StockMoveLine.date >= prev_utc_start,
+            StockMoveLine.date < cur_utc_end,
+        )
     )
+
+    rows = (await db.execute(q)).all()
+
+    # ── Python aggregation ────────────────────────────────────────────
+    # Current period accumulators
+    cur_count = 0
+    cur_dates: set[date] = set()
+    cur_value = 0.0
+    cur_products: set[int] = set()
+    grade_counter: Counter = Counter()
+    daily_grades: dict[date, Counter] = defaultdict(Counter)
+    cat_data: dict[str, dict] = defaultdict(lambda: {
+        "total_qty": 0, "total_value": 0.0,
+        **{GRADE_KEYS[g]: 0 for g in VALID_GRADES}
+    })
+
+    # Previous period accumulators
+    prev_count = 0
+    prev_dates: set[date] = set()
+    prev_value = 0.0
+    prev_products: set[int] = set()
+
+    for row_date, grade, category, list_price, product_id in rows:
+        price = float(list_price) if list_price else 0.0
+        g = grade or "Unknown"
+        cat = category or "Other"
+        dt = row_date.date() if isinstance(row_date, datetime) else row_date
+
+        if row_date >= cur_utc_start:
+            # Current period
+            cur_count += 1
+            cur_dates.add(dt)
+            cur_value += price
+            cur_products.add(product_id)
+
+            # Grade breakdown (current period only)
+            grade_counter[g] += 1
+
+            # Daily grades (current period only)
+            daily_grades[dt][g] += 1
+
+            # Category totals (current period only)
+            cd = cat_data[cat]
+            cd["total_qty"] += 1
+            cd["total_value"] += price
+            gk = GRADE_KEYS.get(g)
+            if gk:
+                cd[gk] += 1
+        else:
+            # Previous period
+            prev_count += 1
+            prev_dates.add(dt)
+            prev_value += price
+            prev_products.add(product_id)
+
+    # ── Build summary ─────────────────────────────────────────────────
+    unique_days = len(cur_dates) or 1
+    daily_avg = round(cur_count / unique_days)
+    prev_days = len(prev_dates) or 1
+    prev_avg = round(prev_count / prev_days)
+
+    summary = {
+        "total_items": cur_count,
+        "daily_average": daily_avg,
+        "total_value": cur_value,
+        "unique_products": len(cur_products),
+        "trends": {
+            "total_items": _trend_pct(cur_count, prev_count),
+            "daily_average": _trend_pct(daily_avg, prev_avg),
+            "total_value": _trend_pct(cur_value, prev_value),
+            "unique_products": _trend_pct(len(cur_products), len(prev_products)),
+        },
+    }
+
+    # ── Build grade breakdown ─────────────────────────────────────────
+    total_graded = sum(grade_counter.values())
+    grades_list = []
+    for g in VALID_GRADES:
+        cnt = grade_counter.get(g, 0)
+        grades_list.append({
+            "grade": g,
+            "key": GRADE_KEYS[g],
+            "count": cnt,
+            "percentage": round(cnt / total_graded * 100, 1) if total_graded else 0,
+        })
+
+    # ── Build daily grades ────────────────────────────────────────────
+    daily_list = []
+    for dt in sorted(daily_grades.keys()):
+        entry = {"date": str(dt)}
+        for g in VALID_GRADES:
+            entry[GRADE_KEYS[g]] = daily_grades[dt].get(g, 0)
+        daily_list.append(entry)
+
+    # ── Build category totals ─────────────────────────────────────────
+    cat_items = sorted(cat_data.items(), key=lambda x: x[1]["total_qty"], reverse=True)
+    cat_list = []
+    grand = {"category": "Grand Total", "total_qty": 0, "total_value": 0.0}
+    for k in GRADE_KEYS.values():
+        grand[k] = 0
+
+    for cat_name, cd in cat_items:
+        row_dict = {"category": cat_name, **cd}
+        cat_list.append(row_dict)
+        grand["total_qty"] += cd["total_qty"]
+        grand["total_value"] += cd["total_value"]
+        for k in GRADE_KEYS.values():
+            grand[k] += cd.get(k, 0)
+
+    categories = {"items": cat_list, "grand_total": grand}
 
     result = {
         "summary": summary,
-        "grades": grades,
-        "daily_grades": daily_grades,
+        "grades": grades_list,
+        "daily_grades": daily_list,
         "categories": categories,
     }
+
+    elapsed = time.time() - t0
+    logger.info(f"[GRADING] overview {view} {date_from}→{date_to}: {len(rows)} rows, {elapsed:.1f}s")
+
     _set_cached(cache_key, result)
     return result
 
@@ -522,16 +662,14 @@ async def prewarm_cache():
     """Pre-populate cache for common date ranges on both views.
 
     Called once on app startup so the first user gets a cache hit.
+    Uses sequential execution with single sessions to avoid connection pool exhaustion.
     """
     today = date.today()
     this_month_start = today.replace(day=1)
-    ytd_start = today.replace(month=1, day=1)
     ranges = [
         (this_month_start, today),              # This month (default preset)
         (today - timedelta(days=6), today),     # Last 7 days
         (today - timedelta(days=29), today),    # Last 30 days
-        (today - timedelta(days=89), today),    # Last 90 days
-        (ytd_start, today),                     # Year to date
     ]
     views = ["total-stocked", "processed-stock"]
 
@@ -544,25 +682,16 @@ async def prewarm_cache():
 
     for view in views:
         for d_from, d_to in ranges:
-            # 1) Overview (summary + grades + chart + categories)
             cache_key = _cache_key("overview", view, d_from, d_to)
-            if not _get_cached(cache_key):
-                try:
-                    async with OdooSessionLocal() as db:
-                        await get_grading_overview(db, view, d_from, d_to)
-                    print(f"[PREWARM]   overview  {view} {d_from}→{d_to}")
-                except Exception as exc:
-                    print(f"[PREWARM]   FAIL overview {view} {d_from}→{d_to}: {exc}")
-
-            # 2) Items page-1 (default params, no filters)
-            items_key = f"items:{view}:{d_from}:{d_to}:None:None:None:None:None:0:50"
-            if not _get_cached(items_key):
-                try:
-                    async with OdooSessionLocal() as db:
-                        await get_grading_items(db, view, d_from, d_to)
-                    print(f"[PREWARM]   items     {view} {d_from}→{d_to}")
-                except Exception as exc:
-                    print(f"[PREWARM]   FAIL items {view} {d_from}→{d_to}: {exc}")
+            if _get_cached(cache_key):
+                continue
+            try:
+                t1 = time.time()
+                async with OdooSessionLocal() as db:
+                    await get_grading_overview(db, view, d_from, d_to)
+                print(f"[PREWARM]   overview  {view} {d_from}→{d_to} ({time.time()-t1:.1f}s)")
+            except Exception as exc:
+                print(f"[PREWARM]   FAIL overview {view} {d_from}→{d_to}: {exc}")
 
     elapsed = time.time() - t0
     print(f"[PREWARM] Grading cache pre-warm complete in {elapsed:.1f}s")

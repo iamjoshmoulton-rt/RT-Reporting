@@ -4,7 +4,7 @@ import { TrendingUp, TrendingDown } from 'lucide-react'
 
 interface KpiCardProps {
   title: string
-  value: string
+  value: string | undefined
   subtitle?: string
   icon: LucideIcon
   trend?: number
@@ -13,12 +13,14 @@ interface KpiCardProps {
   className?: string
   onClick?: () => void
   accent?: string
+  loading?: boolean
 }
 
 export function KpiCard({
   title, value, subtitle, icon: Icon, trend, trendLabel = 'vs prev period',
-  budget, className, onClick, accent,
+  budget, className, onClick, accent, loading,
 }: KpiCardProps) {
+  const isLoading = loading || value === undefined
   const trendUp = trend !== undefined && trend >= 0
 
   return (
@@ -42,9 +44,13 @@ export function KpiCard({
           <p className="text-[11px] font-medium tracking-widest uppercase text-[var(--muted-foreground)]">
             {title}
           </p>
-          <p className="text-2xl sm:text-3xl font-bold font-heading text-[var(--card-foreground)] leading-tight truncate">
-            {value}
-          </p>
+          {isLoading ? (
+            <div className="h-8 w-24 rounded bg-[var(--muted)] animate-pulse mt-1" />
+          ) : (
+            <p className="text-2xl sm:text-3xl font-bold font-heading text-[var(--card-foreground)] leading-tight truncate">
+              {value}
+            </p>
+          )}
           {subtitle && (
             <p className="text-xs text-[var(--muted-foreground)] truncate">{subtitle}</p>
           )}

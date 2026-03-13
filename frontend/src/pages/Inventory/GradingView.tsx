@@ -172,31 +172,35 @@ export function GradingView({ view, title, subtitle }: GradingViewProps) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard
             title="Total Items"
-            value={formatNumber(summary?.total_items ?? 0)}
+            value={summary ? formatNumber(summary.total_items) : undefined}
             icon={Package}
             trend={summary?.trends?.total_items ?? undefined}
             accent="#48cae1"
+            loading={overviewLoading}
           />
           <KpiCard
             title="Daily Average"
-            value={formatNumber(summary?.daily_average ?? 0)}
+            value={summary ? formatNumber(summary.daily_average) : undefined}
             icon={TrendingUp}
             trend={summary?.trends?.daily_average ?? undefined}
             accent="#f97316"
+            loading={overviewLoading}
           />
           <KpiCard
             title="Total Value"
-            value={formatCurrency(summary?.total_value ?? 0)}
+            value={summary ? formatCurrency(summary.total_value) : undefined}
             icon={DollarSign}
             trend={summary?.trends?.total_value ?? undefined}
             accent="#22c55e"
+            loading={overviewLoading}
           />
           <KpiCard
             title="Unique Products"
-            value={formatNumber(summary?.unique_products ?? 0)}
+            value={summary ? formatNumber(summary.unique_products) : undefined}
             icon={Layers}
             trend={summary?.trends?.unique_products ?? undefined}
             accent="#a855f7"
+            loading={overviewLoading}
           />
         </div>
 

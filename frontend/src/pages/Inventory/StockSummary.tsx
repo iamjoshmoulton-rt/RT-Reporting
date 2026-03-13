@@ -6,23 +6,23 @@ import { useInventorySummary, useStockByWarehouse } from '@/api/hooks'
 import { formatNumber } from '@/lib/utils'
 
 export function StockSummaryPage() {
-  const { data: summary } = useInventorySummary()
+  const { data: summary, isLoading: summaryLoading } = useInventorySummary()
   const { data: byWarehouse } = useStockByWarehouse()
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <PermissionGate resource="inventory.stock_levels">
-          <KpiCard title="Total On Hand" value={formatNumber(summary?.total_quantity ?? 0)} icon={Package} />
+          <KpiCard title="Total On Hand" value={summary ? formatNumber(summary.total_quantity) : undefined} icon={Package} loading={summaryLoading} />
         </PermissionGate>
         <PermissionGate resource="inventory.stock_levels">
-          <KpiCard title="Available" value={formatNumber(summary?.available_quantity ?? 0)} icon={BoxesIcon} />
+          <KpiCard title="Available" value={summary ? formatNumber(summary.available_quantity) : undefined} icon={BoxesIcon} loading={summaryLoading} />
         </PermissionGate>
         <PermissionGate resource="inventory.stock_levels">
-          <KpiCard title="Reserved" value={formatNumber(summary?.total_reserved ?? 0)} icon={ArrowRightLeft} />
+          <KpiCard title="Reserved" value={summary ? formatNumber(summary.total_reserved) : undefined} icon={ArrowRightLeft} loading={summaryLoading} />
         </PermissionGate>
         <PermissionGate resource="inventory.stock_levels">
-          <KpiCard title="Unique Products" value={formatNumber(summary?.unique_products ?? 0)} icon={Warehouse} />
+          <KpiCard title="Unique Products" value={summary ? formatNumber(summary.unique_products) : undefined} icon={Warehouse} loading={summaryLoading} />
         </PermissionGate>
       </div>
 
