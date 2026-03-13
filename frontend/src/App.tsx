@@ -38,6 +38,7 @@ import EcommerceInvoice from '@/pages/EcommerceInvoice'
 import EcommerceOrder from '@/pages/EcommerceOrder'
 import PricingHistory from '@/pages/PricingHistory'
 import PricingHistorySO from '@/pages/PricingHistorySO'
+import SalesMargin from '@/pages/SalesMargin'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -89,6 +90,7 @@ function App() {
               <Route path="/ecommerce-order" element={<EcommerceOrder />} />
               <Route path="/pricing-history" element={<PricingHistory />} />
               <Route path="/pricing-history-so" element={<PricingHistorySO />} />
+              <Route path="/sales-margin" element={<SalesMargin />} />
               <Route path="/customers" element={<CustomersPage />} />
               <Route path="/customers/:id" element={<CustomerDetailPage />} />
               <Route path="/alerts" element={<AlertsPage />} />

@@ -1080,3 +1080,14 @@ export function usePricingHistorySOFilterOptions() {
     staleTime: 10 * 60 * 1000,
   })
 }
+
+// --- Sales Margin ---
+
+export function useSalesMarginOverview(params: DateRangeParams) {
+  return useQuery({
+    queryKey: ['sales-margin', 'overview', params],
+    queryFn: () => api.get('/sales-margin/overview', params),
+    enabled: !!params.date_from && !!params.date_to,
+    staleTime: 5 * 60 * 1000,
+  })
+}

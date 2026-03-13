@@ -32,6 +32,7 @@ export const NAV_PERMISSIONS: Record<string, string> = {
   '/ecommerce-order': 'ecommerce.order_view',
   '/pricing-history': 'pricing_history.view',
   '/pricing-history-so': 'pricing_history_so.view',
+  '/sales-margin': 'sales_margin.view',
   '/alerts': 'alerts.view',
   '/report-builder': 'reports.builder',
   '/settings': 'settings.users',
