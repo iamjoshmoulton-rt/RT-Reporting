@@ -1004,3 +1004,36 @@ export function useProcurementDashboardFilterOptions() {
     staleTime: 10 * 60 * 1000,
   })
 }
+
+// --- E-Commerce ---
+
+type EcommerceParams = DateRangeParams & {
+  channel_ids?: number[]
+  category_ids?: number[]
+}
+
+export function useEcommerceInvoiceOverview(params: EcommerceParams) {
+  return useQuery({
+    queryKey: ['ecommerce', 'invoice', 'overview', params],
+    queryFn: () => api.get('/ecommerce/invoice/overview', params),
+    enabled: !!params.date_from && !!params.date_to,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useEcommerceOrderOverview(params: EcommerceParams) {
+  return useQuery({
+    queryKey: ['ecommerce', 'order', 'overview', params],
+    queryFn: () => api.get('/ecommerce/order/overview', params),
+    enabled: !!params.date_from && !!params.date_to,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useEcommerceFilterOptions() {
+  return useQuery({
+    queryKey: ['ecommerce', 'filter-options'],
+    queryFn: () => api.get('/ecommerce/filter-options'),
+    staleTime: 10 * 60 * 1000,
+  })
+}

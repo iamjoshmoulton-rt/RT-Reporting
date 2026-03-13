@@ -7,6 +7,7 @@ interface KpiCardProps {
   title: string
   value: string | undefined
   subtitle?: string
+  subtitleColor?: string
   icon: LucideIcon
   trend?: number
   trendLabel?: string
@@ -19,7 +20,7 @@ interface KpiCardProps {
 }
 
 export function KpiCard({
-  title, value, subtitle, icon: Icon, trend, trendLabel = 'vs prev period',
+  title, value, subtitle, subtitleColor, icon: Icon, trend, trendLabel = 'vs prev period',
   budget, className, onClick, accent, loading, tooltip,
 }: KpiCardProps) {
   const isLoading = loading || value === undefined
@@ -55,7 +56,7 @@ export function KpiCard({
             </p>
           )}
           {subtitle && (
-            <p className="text-xs text-[var(--muted-foreground)] truncate">{subtitle}</p>
+            <p className="text-xs truncate" style={{ color: subtitleColor ?? 'var(--muted-foreground)' }}>{subtitle}</p>
           )}
           {budget != null && budget !== '' && (
             <p className="text-xs text-[var(--muted-foreground)]">Budget: {budget}</p>

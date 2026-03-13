@@ -114,6 +114,13 @@ RESOURCES = {
         "manufacturing.export_excel",
         "manufacturing.export_pdf",
     ],
+    "ecommerce": [
+        "ecommerce.invoice_view",
+        "ecommerce.order_view",
+        "ecommerce.export_csv",
+        "ecommerce.export_excel",
+        "ecommerce.export_pdf",
+    ],
     "reports": [
         "reports.builder",
         "reports.saved",

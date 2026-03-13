@@ -35,6 +35,8 @@ export const NAV_PERMISSIONS: Record<string, string> = {
   '/crm': 'crm.summary',
   '/projects': 'projects.summary',
   '/customers': 'customers.summary',
+  '/ecommerce-invoice': 'ecommerce.invoice_view',
+  '/ecommerce-order': 'ecommerce.order_view',
   '/alerts': 'alerts.view',
   '/report-builder': 'reports.builder',
   '/settings': 'settings.users',
