@@ -61,6 +61,7 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    allowedHosts: ['report-staging.refreshedtech.com', 'reporting.refreshedtech.com'],
     proxy: {
       '/api': {
         target: 'http://backend:8000',
