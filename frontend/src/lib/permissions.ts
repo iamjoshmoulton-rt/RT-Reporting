@@ -35,6 +35,7 @@ export const NAV_PERMISSIONS: Record<string, string> = {
   '/sales-margin': 'sales_margin.view',
   '/trade-in': 'trade_in.view',
   '/accounting-dash': 'accounting_dash.view',
+  '/operations-processing': 'operations_processing.view',
   '/alerts': 'alerts.view',
   '/report-builder': 'reports.builder',
   '/settings': 'settings.users',

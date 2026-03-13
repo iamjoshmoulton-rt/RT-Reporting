@@ -14,6 +14,7 @@ import {
   X,
   ArrowLeftRight,
   Calculator,
+  Cog,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -33,6 +34,7 @@ const navItems = [
   { path: '/sales-margin', label: 'Sales Margin', icon: BarChart3 },
   { path: '/trade-in', label: 'Trade-In', icon: ArrowLeftRight },
   { path: '/accounting-dash', label: 'Accounting', icon: Calculator },
+  { path: '/operations-processing', label: 'Ops / Processing', icon: Cog },
   { path: '/alerts', label: 'Alerts', icon: Bell },
   { path: '/report-builder', label: 'Report Builder', icon: Wrench },
   { path: '/settings', label: 'Settings', icon: Settings },

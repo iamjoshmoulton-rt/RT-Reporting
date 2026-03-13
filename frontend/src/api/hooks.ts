@@ -1113,3 +1113,11 @@ export function useAccountingDashOverview(params: DateRangeParams) {
     staleTime: 5 * 60 * 1000,
   })
 }
+
+export function useOperationsProcessingOverview() {
+  return useQuery({
+    queryKey: ['operations-processing', 'overview'],
+    queryFn: () => api.get('/operations-processing/overview'),
+    staleTime: 5 * 60 * 1000,
+  })
+}
